@@ -37,11 +37,82 @@
                     <span id="mensaje-contraseña" style="font-size: 0.9em; font-weight: bold;"></span>
     
     
-                    <button type="submit">Enviar</button>
+                    <button type="submit">Iniciar Sesión</button>
+                    <button type="button" id="btn-registrarse" class="btn-registrarse">Registrarse</button>
                     <div id="mensaje-exito" style="margin-top: 10px; font-weight: bold; color: green;"></div>
                 </div>
              </form>
          </div>
+    </div>
+
+    <!-- =========================================== -->
+    <!-- MODAL DE REGISTRO -->
+    <!-- =========================================== -->
+    <div id="registerModal" class="register-modal">
+        <div class="register-overlay"></div>
+        <div class="register-content">
+            <div class="register-header">
+                <h2>Crear Cuenta</h2>
+                <button id="closeRegisterModal" class="btn-close-modal">&times;</button>
+            </div>
+            
+            <form id="form-register">
+                <div class="register-form">
+                    <div class="form-group">
+                        <label for="register-nombre">Nombre Completo</label>
+                        <input type="text" id="register-nombre" name="nombre" placeholder="Ingrese su nombre completo" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="register-correo">Correo Electrónico</label>
+                        <input type="email" id="register-correo" name="correo" placeholder="Ingrese su correo electrónico" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="register-telefono">Teléfono</label>
+                        <input type="tel" id="register-telefono" name="telefono" placeholder="Ingrese su número de teléfono" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="register-empresa">Empresa/Organización</label>
+                        <input type="text" id="register-empresa" name="empresa" placeholder="Ingrese el nombre de su empresa" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="register-cargo">Cargo/Posición</label>
+                        <input type="text" id="register-cargo" name="cargo" placeholder="Ingrese su cargo o posición" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="register-contraseña">Contraseña</label>
+                        <input type="password" id="register-contraseña" name="contraseña" placeholder="Mínimo 8 caracteres" required>
+                        <div id="register-fuerza-contraseña" style="height: 10px; border-radius: 5px; margin-bottom: 5px;"></div>
+                        <span id="register-mensaje-contraseña" style="font-size: 0.9em; font-weight: bold;"></span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="register-confirmar-contraseña">Confirmar Contraseña</label>
+                        <input type="password" id="register-confirmar-contraseña" name="confirmar-contraseña" placeholder="Confirme su contraseña" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="register-terminos" name="terminos" required>
+                            <span class="checkmark"></span>
+                            Acepto los <a href="#" class="link-terminos">términos y condiciones</a> y la <a href="#" class="link-privacidad">política de privacidad</a>
+                        </label>
+                    </div>
+                    
+                    <div class="register-buttons">
+                        <button type="submit" class="btn-register">Crear Cuenta</button>
+                        <button type="button" id="cancelRegister" class="btn-cancel-register">Cancelar</button>
+                    </div>
+                    
+                    <div id="register-mensaje-exito" style="margin-top: 10px; font-weight: bold; color: green;"></div>
+                    <div id="register-mensaje-error" style="margin-top: 10px; font-weight: bold; color: red;"></div>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- =========================================== -->
@@ -52,11 +123,7 @@
     <img src="../imagen1.png" alt="" class="bg-side bg-left" aria-hidden="true">
     <img src="../imagen2.png" alt="" class="bg-side bg-right" aria-hidden="true">
 
-    <div id="toast" class="toast" aria-live="polite"></div>
-
-
-    
-    
+    <div id="toast" class="toast" aria-live="polite"></div> 
     <div id="chatbot" class="chatbot" style="display: none;">
         <div id="chatHeader" class="chat-header">
             <div class="chat-title">

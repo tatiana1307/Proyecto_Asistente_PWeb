@@ -20,6 +20,23 @@ class ChatbotApp {
             correoInput: document.getElementById('correo'),
             contraseñaInput: document.getElementById('contraseña'),
             mensajeExito: document.getElementById('mensaje-exito'),
+            btnRegistrarse: document.getElementById('btn-registrarse'),
+            
+            // Elementos del modal de registro
+            registerModal: document.getElementById('registerModal'),
+            registerForm: document.getElementById('form-register'),
+            closeRegisterModal: document.getElementById('closeRegisterModal'),
+            cancelRegister: document.getElementById('cancelRegister'),
+            registerNombreInput: document.getElementById('register-nombre'),
+            registerCorreoInput: document.getElementById('register-correo'),
+            registerTelefonoInput: document.getElementById('register-telefono'),
+            registerEmpresaInput: document.getElementById('register-empresa'),
+            registerCargoInput: document.getElementById('register-cargo'),
+            registerContraseñaInput: document.getElementById('register-contraseña'),
+            registerConfirmarContraseñaInput: document.getElementById('register-confirmar-contraseña'),
+            registerTerminosInput: document.getElementById('register-terminos'),
+            registerMensajeExito: document.getElementById('register-mensaje-exito'),
+            registerMensajeError: document.getElementById('register-mensaje-error'),
             
             // Elementos del chatbot
             chatbotSection: document.getElementById('chatbotSection'),
@@ -116,6 +133,41 @@ class ChatbotApp {
         if (this.elements.contraseñaInput) {
             this.elements.contraseñaInput.addEventListener('input', this.validatePassword.bind(this));
             console.log('✅ Event listener de contraseña configurado');
+        }
+        
+        // Event listeners del modal de registro
+        if (this.elements.btnRegistrarse) {
+            this.elements.btnRegistrarse.addEventListener('click', this.openRegisterModal.bind(this));
+            console.log('✅ Event listener del botón registrarse configurado');
+        }
+        
+        if (this.elements.closeRegisterModal) {
+            this.elements.closeRegisterModal.addEventListener('click', this.closeRegisterModal.bind(this));
+        }
+        
+        if (this.elements.cancelRegister) {
+            this.elements.cancelRegister.addEventListener('click', this.closeRegisterModal.bind(this));
+        }
+        
+        if (this.elements.registerForm) {
+            this.elements.registerForm.addEventListener('submit', this.handleRegisterSubmit.bind(this));
+        }
+        
+        if (this.elements.registerContraseñaInput) {
+            this.elements.registerContraseñaInput.addEventListener('input', this.validateRegisterPassword.bind(this));
+        }
+        
+        if (this.elements.registerConfirmarContraseñaInput) {
+            this.elements.registerConfirmarContraseñaInput.addEventListener('input', this.validatePasswordMatch.bind(this));
+        }
+        
+        // Cerrar modal al hacer clic en el overlay
+        if (this.elements.registerModal) {
+            this.elements.registerModal.addEventListener('click', (e) => {
+                if (e.target === this.elements.registerModal) {
+                    this.closeRegisterModal();
+                }
+            });
         }
 
         // Eventos del chatbot
@@ -1578,6 +1630,228 @@ class ChatbotApp {
     // MÉTODOS DE VALIDACIÓN Y ACCESIBILIDAD
     // (Reutilizados del código anterior)
     // ===========================================
+    
+    /**
+     * Abre el modal de registro
+     */
+    openRegisterModal() {
+        console.log('📝 Abriendo modal de registro...');
+        if (this.elements.registerModal) {
+            this.elements.registerModal.classList.add('active');
+            // Limpiar mensajes anteriores
+            this.clearRegisterMessages();
+            // Enfocar el primer campo
+            if (this.elements.registerNombreInput) {
+                this.elements.registerNombreInput.focus();
+            }
+        }
+    }
+
+    /**
+     * Cierra el modal de registro
+     */
+    closeRegisterModal() {
+        console.log('❌ Cerrando modal de registro...');
+        if (this.elements.registerModal) {
+            this.elements.registerModal.classList.remove('active');
+            // Limpiar el formulario
+            this.clearRegisterForm();
+        }
+    }
+
+    /**
+     * Limpia el formulario de registro
+     */
+    clearRegisterForm() {
+        if (this.elements.registerForm) {
+            this.elements.registerForm.reset();
+        }
+        this.clearRegisterMessages();
+    }
+
+    /**
+     * Limpia los mensajes del modal de registro
+     */
+    clearRegisterMessages() {
+        if (this.elements.registerMensajeExito) {
+            this.elements.registerMensajeExito.textContent = '';
+        }
+        if (this.elements.registerMensajeError) {
+            this.elements.registerMensajeError.textContent = '';
+        }
+    }
+
+    /**
+     * Valida la contraseña del registro en tiempo real
+     */
+    validateRegisterPassword() {
+        const contraseña = this.elements.registerContraseñaInput.value;
+        const fuerzaDiv = document.getElementById('register-fuerza-contraseña');
+        const mensajeSpan = document.getElementById('register-mensaje-contraseña');
+        
+        if (!contraseña) {
+            fuerzaDiv.style.width = '0%';
+            fuerzaDiv.style.backgroundColor = 'transparent';
+            mensajeSpan.textContent = '';
+            return;
+        }
+        
+        let fuerza = 0;
+        let mensaje = '';
+        
+        // Longitud mínima
+        if (contraseña.length >= 8) fuerza += 20;
+        else mensaje = 'Mínimo 8 caracteres';
+        
+        // Contiene mayúsculas
+        if (/[A-Z]/.test(contraseña)) fuerza += 20;
+        
+        // Contiene minúsculas
+        if (/[a-z]/.test(contraseña)) fuerza += 20;
+        
+        // Contiene números
+        if (/[0-9]/.test(contraseña)) fuerza += 20;
+        
+        // Contiene caracteres especiales
+        if (/[^A-Za-z0-9]/.test(contraseña)) fuerza += 20;
+        
+        // Aplicar colores según la fuerza
+        if (fuerza < 40) {
+            fuerzaDiv.style.backgroundColor = '#ff4444';
+            mensaje = mensaje || 'Contraseña débil';
+        } else if (fuerza < 80) {
+            fuerzaDiv.style.backgroundColor = '#ffaa00';
+            mensaje = mensaje || 'Contraseña media';
+        } else {
+            fuerzaDiv.style.backgroundColor = '#44ff44';
+            mensaje = mensaje || 'Contraseña fuerte';
+        }
+        
+        fuerzaDiv.style.width = fuerza + '%';
+        mensajeSpan.textContent = mensaje;
+    }
+
+    /**
+     * Valida que las contraseñas coincidan
+     */
+    validatePasswordMatch() {
+        const contraseña = this.elements.registerContraseñaInput.value;
+        const confirmarContraseña = this.elements.registerConfirmarContraseñaInput.value;
+        
+        if (confirmarContraseña && contraseña !== confirmarContraseña) {
+            this.elements.registerConfirmarContraseñaInput.style.borderColor = '#ff4444';
+            return false;
+        } else {
+            this.elements.registerConfirmarContraseñaInput.style.borderColor = '#e2e8f0';
+            return true;
+        }
+    }
+
+    /**
+     * Maneja el envío del formulario de registro
+     */
+    handleRegisterSubmit(event) {
+        event.preventDefault();
+        console.log('📝 Procesando registro...');
+        
+        // Limpiar mensajes anteriores
+        this.clearRegisterMessages();
+        
+        // Validar formulario
+        if (!this.validateRegisterForm()) {
+            return;
+        }
+        
+        // Obtener datos del formulario
+        const formData = new FormData(this.elements.registerForm);
+        const userData = {
+            nombre: formData.get('nombre'),
+            correo: formData.get('correo'),
+            telefono: formData.get('telefono'),
+            empresa: formData.get('empresa'),
+            cargo: formData.get('cargo'),
+            contraseña: formData.get('contraseña')
+        };
+        
+        console.log('📝 Datos de registro:', userData);
+        
+        // Simular registro exitoso (aquí iría la lógica real de registro)
+        setTimeout(() => {
+            this.showRegisterSuccess();
+        }, 1000);
+    }
+
+    /**
+     * Valida el formulario de registro
+     */
+    validateRegisterForm() {
+        let isValid = true;
+        
+        // Validar campos requeridos
+        const requiredFields = [
+            { input: this.elements.registerNombreInput, name: 'Nombre' },
+            { input: this.elements.registerCorreoInput, name: 'Correo' },
+            { input: this.elements.registerTelefonoInput, name: 'Teléfono' },
+            { input: this.elements.registerEmpresaInput, name: 'Empresa' },
+            { input: this.elements.registerCargoInput, name: 'Cargo' },
+            { input: this.elements.registerContraseñaInput, name: 'Contraseña' },
+            { input: this.elements.registerConfirmarContraseñaInput, name: 'Confirmar Contraseña' }
+        ];
+        
+        requiredFields.forEach(field => {
+            if (!field.input.value.trim()) {
+                this.showRegisterError(`El campo ${field.name} es requerido`);
+                field.input.style.borderColor = '#ff4444';
+                isValid = false;
+            } else {
+                field.input.style.borderColor = '#e2e8f0';
+            }
+        });
+        
+        // Validar contraseñas
+        if (isValid && !this.validatePasswordMatch()) {
+            this.showRegisterError('Las contraseñas no coinciden');
+            isValid = false;
+        }
+        
+        // Validar términos y condiciones
+        if (isValid && !this.elements.registerTerminosInput.checked) {
+            this.showRegisterError('Debe aceptar los términos y condiciones');
+            isValid = false;
+        }
+        
+        return isValid;
+    }
+
+    /**
+     * Muestra mensaje de éxito en el registro
+     */
+    showRegisterSuccess() {
+        if (this.elements.registerMensajeExito) {
+            this.elements.registerMensajeExito.textContent = '¡Registro exitoso! Su cuenta ha sido creada.';
+        }
+        
+        // Cerrar modal después de 2 segundos
+        setTimeout(() => {
+            this.closeRegisterModal();
+            // Mostrar mensaje en el login
+            if (this.elements.mensajeExito) {
+                this.elements.mensajeExito.textContent = '¡Registro completado! Ahora puede iniciar sesión.';
+                setTimeout(() => {
+                    this.elements.mensajeExito.textContent = '';
+                }, 5000);
+            }
+        }, 2000);
+    }
+
+    /**
+     * Muestra mensaje de error en el registro
+     */
+    showRegisterError(message) {
+        if (this.elements.registerMensajeError) {
+            this.elements.registerMensajeError.textContent = message;
+        }
+    }
 }
 
 // Esta inicialización se movió al final del archivo para usar la variable global
@@ -1607,9 +1881,8 @@ Comandos útiles:
 - localStorage.clear() // Limpia datos guardados
 - location.reload() // Recarga la página
     `);
-}
+    }
 
-// Variable global para acceder a la instancia desde los botones HTML
 let chatbotApp;
 
 // Inicializar la aplicación cuando se carga la página
