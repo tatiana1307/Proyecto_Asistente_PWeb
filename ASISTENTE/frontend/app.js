@@ -29,14 +29,18 @@ class ChatbotApp {
             cancelRegister: document.getElementById('cancelRegister'),
             registerNombreInput: document.getElementById('register-nombre'),
             registerCorreoInput: document.getElementById('register-correo'),
-            registerTelefonoInput: document.getElementById('register-telefono'),
-            registerEmpresaInput: document.getElementById('register-empresa'),
             registerCargoInput: document.getElementById('register-cargo'),
             registerContraseñaInput: document.getElementById('register-contraseña'),
             registerConfirmarContraseñaInput: document.getElementById('register-confirmar-contraseña'),
             registerTerminosInput: document.getElementById('register-terminos'),
             registerMensajeExito: document.getElementById('register-mensaje-exito'),
             registerMensajeError: document.getElementById('register-mensaje-error'),
+            
+            // Elementos del popup de usuario no registrado
+            popupNoRegistrado: document.getElementById('popup-no-registrado'),
+            btnCerrarPopup: document.getElementById('btn-cerrar-popup'),
+            btnRegistrarsePopup: document.getElementById('btn-registrarse-popup'),
+            btnCancelarPopup: document.getElementById('btn-cancelar-popup'),
             
             // Elementos del chatbot
             chatbotSection: document.getElementById('chatbotSection'),
@@ -150,7 +154,10 @@ class ChatbotApp {
         }
         
         if (this.elements.registerForm) {
+            console.log('✅ Formulario de registro encontrado, agregando event listener');
             this.elements.registerForm.addEventListener('submit', this.handleRegisterSubmit.bind(this));
+        } else {
+            console.error('❌ Formulario de registro NO encontrado');
         }
         
         if (this.elements.registerContraseñaInput) {
@@ -166,6 +173,28 @@ class ChatbotApp {
             this.elements.registerModal.addEventListener('click', (e) => {
                 if (e.target === this.elements.registerModal) {
                     this.closeRegisterModal();
+                }
+            });
+        }
+
+        // Event listeners del popup de usuario no registrado
+        if (this.elements.btnCerrarPopup) {
+            this.elements.btnCerrarPopup.addEventListener('click', this.closeNoRegistradoPopup.bind(this));
+        }
+        
+        if (this.elements.btnCancelarPopup) {
+            this.elements.btnCancelarPopup.addEventListener('click', this.closeNoRegistradoPopup.bind(this));
+        }
+        
+        if (this.elements.btnRegistrarsePopup) {
+            this.elements.btnRegistrarsePopup.addEventListener('click', this.openRegisterFromPopup.bind(this));
+        }
+        
+        // Cerrar popup al hacer clic en el overlay
+        if (this.elements.popupNoRegistrado) {
+            this.elements.popupNoRegistrado.addEventListener('click', (e) => {
+                if (e.target === this.elements.popupNoRegistrado) {
+                    this.closeNoRegistradoPopup();
                 }
             });
         }
@@ -280,26 +309,70 @@ class ChatbotApp {
             return;
         }
         
-        // Guardar datos de login
-        this.state.loginData = { nombre, correo, contraseña };
-        this.state.isLoggedIn = true;
-        this.state.userName = nombre; // Usar el nombre del login para el chatbot
-        
-        // Guardar en localStorage
-        localStorage.setItem('user_login', JSON.stringify(this.state.loginData));
-        
-        // Mostrar mensaje de éxito
-        this.elements.mensajeExito.textContent = '¡Login exitoso! Redirigiendo al chatbot...';
-        this.elements.mensajeExito.style.color = 'green';
-        
-        console.log('✅ Login exitoso para:', nombre);
-        
-        // Transición al chatbot después de un breve delay
-        console.log('⏰ Programando transición al chatbot en 1.5 segundos...');
-        setTimeout(() => {
-            console.log('🚀 Ejecutando transición al chatbot...');
-            this.showChatbotSection();
-        }, 1500);
+        // Enviar datos al backend para login
+        this.loginUser({ correo, contraseña });
+    }
+
+    /**
+     * Envía los datos de login al backend
+     */
+    async loginUser(loginData) {
+        try {
+            console.log('🔐 Enviando datos de login al backend...');
+            
+            const response = await fetch('http://localhost:8080/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(loginData)
+            });
+            
+            const result = await response.json();
+            console.log('📡 Respuesta del backend:', result);
+            
+            if (result.success) {
+                // Guardar datos de login
+                this.state.loginData = { 
+                    nombre: result.nombre, 
+                    correo: result.correo, 
+                    contraseña: loginData.contraseña 
+                };
+                this.state.isLoggedIn = true;
+                this.state.userName = result.nombre;
+                
+                // Guardar en localStorage
+                localStorage.setItem('user_login', JSON.stringify(this.state.loginData));
+                
+                // Mostrar mensaje de éxito
+                this.elements.mensajeExito.textContent = '¡Login exitoso! Redirigiendo al chatbot...';
+                this.elements.mensajeExito.style.color = 'green';
+                
+                console.log('✅ Login exitoso para:', result.nombre);
+                
+                // Transición al chatbot después de un breve delay
+                setTimeout(() => {
+                    console.log('🚀 Ejecutando transición al chatbot...');
+                    this.showChatbotSection();
+                }, 1500);
+                
+            } else {
+                // Verificar si el error es porque el usuario no está registrado
+                if (result.message && result.message.includes('no está registrado')) {
+                    console.log('⚠️ Usuario no registrado, mostrando popup');
+                    this.showNoRegistradoPopup();
+                } else {
+                    this.elements.mensajeExito.textContent = result.message || 'Credenciales incorrectas';
+                    this.elements.mensajeExito.style.color = 'red';
+                    console.error('❌ Error en login:', result.message);
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Error de conexión:', error);
+            this.elements.mensajeExito.textContent = 'Error de conexión. Verifica que el backend esté ejecutándose.';
+            this.elements.mensajeExito.style.color = 'red';
+        }
     }
 
     /**
@@ -1753,6 +1826,7 @@ class ChatbotApp {
     handleRegisterSubmit(event) {
         event.preventDefault();
         console.log('📝 Procesando registro...');
+        console.log('📝 Evento recibido:', event);
         
         // Limpiar mensajes anteriores
         this.clearRegisterMessages();
@@ -1767,18 +1841,46 @@ class ChatbotApp {
         const userData = {
             nombre: formData.get('nombre'),
             correo: formData.get('correo'),
-            telefono: formData.get('telefono'),
-            empresa: formData.get('empresa'),
             cargo: formData.get('cargo'),
             contraseña: formData.get('contraseña')
         };
         
         console.log('📝 Datos de registro:', userData);
         
-        // Simular registro exitoso (aquí iría la lógica real de registro)
-        setTimeout(() => {
-            this.showRegisterSuccess();
-        }, 1000);
+        // Enviar datos al backend
+        this.registerUser(userData);
+    }
+
+    /**
+     * Envía los datos de registro al backend
+     */
+    async registerUser(userData) {
+        try {
+            console.log('🚀 Enviando datos al backend...');
+            
+            const response = await fetch('http://localhost:8080/api/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(userData)
+            });
+            
+            const result = await response.json();
+            console.log('📡 Respuesta del backend:', result);
+            
+            if (result.success) {
+                this.showRegisterSuccess();
+                console.log('✅ Usuario registrado exitosamente');
+            } else {
+                this.showRegisterError(result.message || 'Error al registrar usuario');
+                console.error('❌ Error en registro:', result.message);
+            }
+            
+        } catch (error) {
+            console.error('❌ Error de conexión:', error);
+            this.showRegisterError('Error de conexión. Verifica que el backend esté ejecutándose.');
+        }
     }
 
     /**
@@ -1791,8 +1893,6 @@ class ChatbotApp {
         const requiredFields = [
             { input: this.elements.registerNombreInput, name: 'Nombre' },
             { input: this.elements.registerCorreoInput, name: 'Correo' },
-            { input: this.elements.registerTelefonoInput, name: 'Teléfono' },
-            { input: this.elements.registerEmpresaInput, name: 'Empresa' },
             { input: this.elements.registerCargoInput, name: 'Cargo' },
             { input: this.elements.registerContraseñaInput, name: 'Contraseña' },
             { input: this.elements.registerConfirmarContraseñaInput, name: 'Confirmar Contraseña' }
@@ -1828,15 +1928,20 @@ class ChatbotApp {
      */
     showRegisterSuccess() {
         if (this.elements.registerMensajeExito) {
-            this.elements.registerMensajeExito.textContent = '¡Registro exitoso! Su cuenta ha sido creada.';
+            this.elements.registerMensajeExito.textContent = '✅ ¡Registro exitoso! Su cuenta ha sido creada correctamente.';
+            this.elements.registerMensajeExito.style.color = 'green';
+            this.elements.registerMensajeExito.style.fontWeight = 'bold';
         }
         
-        // Cerrar modal después de 2 segundos
+        // Limpiar el formulario
+        this.clearRegisterForm();
+        
+        // Cerrar modal después de 3 segundos
         setTimeout(() => {
             this.closeRegisterModal();
             // Mostrar mensaje en el login
             if (this.elements.mensajeExito) {
-                this.elements.mensajeExito.textContent = '¡Registro completado! Ahora puede iniciar sesión.';
+                this.elements.mensajeExito.textContent = '✅ ¡Registro completado! Ahora puede iniciar sesión con sus credenciales.';
                 setTimeout(() => {
                     this.elements.mensajeExito.textContent = '';
                 }, 5000);
@@ -1851,6 +1956,44 @@ class ChatbotApp {
         if (this.elements.registerMensajeError) {
             this.elements.registerMensajeError.textContent = message;
         }
+    }
+
+    /**
+     * Muestra el popup de usuario no registrado
+     */
+    showNoRegistradoPopup() {
+        console.log('🔔 Mostrando popup de usuario no registrado');
+        if (this.elements.popupNoRegistrado) {
+            this.elements.popupNoRegistrado.style.display = 'flex';
+            // Agregar animación de entrada
+            setTimeout(() => {
+                this.elements.popupNoRegistrado.style.opacity = '1';
+            }, 10);
+        }
+    }
+
+    /**
+     * Cierra el popup de usuario no registrado
+     */
+    closeNoRegistradoPopup() {
+        console.log('❌ Cerrando popup de usuario no registrado');
+        if (this.elements.popupNoRegistrado) {
+            this.elements.popupNoRegistrado.style.opacity = '0';
+            setTimeout(() => {
+                this.elements.popupNoRegistrado.style.display = 'none';
+            }, 300);
+        }
+    }
+
+    /**
+     * Abre el modal de registro desde el popup
+     */
+    openRegisterFromPopup() {
+        console.log('📝 Abriendo modal de registro desde popup');
+        this.closeNoRegistradoPopup();
+        setTimeout(() => {
+            this.openRegisterModal();
+        }, 300);
     }
 }
 

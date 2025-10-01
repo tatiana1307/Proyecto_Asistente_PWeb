@@ -69,16 +69,6 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="register-telefono">Teléfono</label>
-                        <input type="tel" id="register-telefono" name="telefono" placeholder="Ingrese su número de teléfono" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="register-empresa">Empresa/Organización</label>
-                        <input type="text" id="register-empresa" name="empresa" placeholder="Ingrese el nombre de su empresa" required>
-                    </div>
-                    
-                    <div class="form-group">
                         <label for="register-cargo">Cargo/Posición</label>
                         <input type="text" id="register-cargo" name="cargo" placeholder="Ingrese su cargo o posición" required>
                     </div>
@@ -172,6 +162,29 @@
                 <div class="dot"></div>
                 <div class="dot"></div>
                 <div class="dot"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup para usuario no registrado -->
+    <div id="popup-no-registrado" class="popup-overlay" style="display: none;">
+        <div class="popup-content">
+            <div class="popup-header">
+                <h3>⚠️ Usuario No Registrado</h3>
+                <button class="popup-close" id="btn-cerrar-popup">&times;</button>
+            </div>
+            <div class="popup-body">
+                <p>El usuario con el correo ingresado no está registrado en nuestra base de datos.</p>
+                <p><strong>¿Qué puedes hacer?</strong></p>
+                <ul>
+                    <li>Verificar que el correo esté escrito correctamente</li>
+                    <li>Registrarte primero haciendo clic en "Registrarse"</li>
+                    <li>Contactar al administrador si crees que es un error</li>
+                </ul>
+            </div>
+            <div class="popup-footer">
+                <button class="btn-popup btn-registrarse-popup" id="btn-registrarse-popup">Registrarse</button>
+                <button class="btn-popup btn-cancelar-popup" id="btn-cancelar-popup">Cerrar</button>
             </div>
         </div>
     </div>
