@@ -1,18 +1,4 @@
-/**
- * FRONTEND PARA CHATBOT CON BACKEND SPRING BOOT
- * =============================================
- * 
- * Funcionalidades implementadas:
- * - Modal inicial con validaciones en tiempo real
- * - Integración con backend Spring Boot
- * - Chat normal (POST /api/chat)
- * - Chat streaming (POST /api/chat/stream) con SSE
- * - Manejo de errores con toasts
- * - Historial de conversación
- * - Accesibilidad completa
- * - Indicadores de estado
- * - Modo debug configurable
- */
+
 
 class ChatbotApp {
     constructor() {
@@ -27,71 +13,69 @@ class ChatbotApp {
 
         // Referencias a elementos del DOM
         this.elements = {
-            overlay: document.getElementById('overlay'),
-            modal: document.getElementById('modal'),
-            modalForm: document.getElementById('modalForm'),
-            nameInput: document.getElementById('nameInput'),
-            dateInput: document.getElementById('dateInput'),
-            nameError: document.getElementById('nameError'),
-            dateError: document.getElementById('dateError'),
-            acceptBtn: document.getElementById('acceptBtn'),
-            cancelBtn: document.getElementById('cancelBtn'),
-            configModal: document.getElementById('configModal'),
-            configForm: document.getElementById('configForm'),
-            apiKeyInput: document.getElementById('apiKeyInput'),
-            apiKeyError: document.getElementById('apiKeyError'),
-            configStatus: document.getElementById('configStatus'),
-            configSaveBtn: document.getElementById('configSaveBtn'),
-            configSkipBtn: document.getElementById('configSkipBtn'),
-            cancelMessage: document.getElementById('cancelMessage'),
-            reopenModalBtn: document.getElementById('reopenModalBtn'),
+            // Elementos del login
+            loginSection: document.getElementById('loginSection'),
+            loginForm: document.getElementById('form-login'),
+            nombreInput: document.getElementById('nombre'),
+            correoInput: document.getElementById('correo'),
+            contraseñaInput: document.getElementById('contraseña'),
+            mensajeExito: document.getElementById('mensaje-exito'),
+            
+            // Elementos del chatbot
+            chatbotSection: document.getElementById('chatbotSection'),
             chatbot: document.getElementById('chatbot'),
             chatMessages: document.getElementById('chatMessages'),
             chatForm: document.getElementById('chatForm'),
             chatInput: document.getElementById('chatInput'),
             sendBtn: document.getElementById('sendBtn'),
-            configBtn: document.getElementById('configBtn'),
             changeUserBtn: document.getElementById('changeUserBtn'),
             minimizeBtn: document.getElementById('minimizeBtn'),
             chatStatus: document.getElementById('chatStatus'),
             statusIndicator: document.getElementById('statusIndicator'),
-            toast: document.getElementById('toast'),
-            debugInfo: document.getElementById('debugInfo'),
-            debugContent: document.getElementById('debugContent')
+            toast: document.getElementById('toast')
         };
 
         // Estado de la aplicación
         this.state = {
-            userName: '',
-            selectedDate: '',
-            userId: this.generateUserId(),
-            isModalOpen: false,
-            isConfigModalOpen: false,
-            isChatMinimized: false,
-            isConnected: false,
-            isConfigured: false,
-            currentStreamingMessage: null,
-            conversationHistory: [],
-            focusableElements: [],
-            currentFocusIndex: 0,
-            menuSessionId: null,
-            menuSessionActive: true,
-            waitingForProjectIdea: false, 
-            waitingForNewTask: false, 
-            waitingForTaskNumber: false 
+            // Estado del login
+            isLoggedIn: false,
+            loginData: {
+                nombre: '',
+                correo: '',
+                contraseña: ''
+            },
+            
+        // Estado del chatbot
+        userName: '',
+        userId: this.generateUserId(),
+        isChatMinimized: false,
+        isConnected: false,
+        conversationHistory: [],
+        // Estados de flujo de menú
+        menuSessionId: null,
+        menuSessionActive: true,
+        waitingForProjectIdea: false,
+        waitingForNewTask: false,
+        waitingForTaskNumber: false
         };
 
         // Inicialización
         this.init();
+        
+        // Debug: verificar elementos
+        console.log('🔍 Elementos encontrados:', {
+            loginForm: this.elements.loginForm,
+            nombreInput: this.elements.nombreInput,
+            correoInput: this.elements.correoInput,
+            contraseñaInput: this.elements.contraseñaInput
+        });
     }
 
     init() {
-        console.log('🚀 Iniciando aplicación de chatbot con backend...');
+        console.log('🚀 Iniciando aplicación integrada de login + chatbot...');
         
-        this.setCurrentDate();
         this.setupEventListeners();
-        this.checkBackendConnection();
-        this.checkConfiguration();
+        this.checkLoginStatus();
         
         if (this.config.debugMode) {
             this.setupDebugMode();
@@ -115,48 +99,234 @@ class ChatbotApp {
     }
 
     /**
-     * Establece la fecha actual en el input de fecha
-     */
-    setCurrentDate() {
-        const today = new Date().toISOString().split('T')[0];
-        this.elements.dateInput.value = today;
-        this.state.selectedDate = today;
-    }
-
-    /**
      * Configura todos los event listeners
      */
     setupEventListeners() {
-        // Eventos del modal
-        this.elements.modalForm.addEventListener('submit', this.handleModalSubmit.bind(this));
-        this.elements.cancelBtn.addEventListener('click', this.handleModalCancel.bind(this));
-        this.elements.reopenModalBtn.addEventListener('click', this.openModal.bind(this));
+        console.log('🔧 Configurando event listeners...');
         
-        // Eventos del modal de configuración
-        this.elements.configForm.addEventListener('submit', this.handleConfigSubmit.bind(this));
-        this.elements.configSkipBtn.addEventListener('click', this.handleConfigSkip.bind(this));
-        this.elements.apiKeyInput.addEventListener('input', this.validateApiKeyInput.bind(this));
+        // Eventos del login
+        if (this.elements.loginForm) {
+            this.elements.loginForm.addEventListener('submit', this.handleLoginSubmit.bind(this));
+            console.log('✅ Event listener del login configurado');
+        } else {
+            console.error('❌ No se encontró el formulario de login');
+        }
         
-        // Validaciones en tiempo real
-        this.elements.nameInput.addEventListener('input', this.validateForm.bind(this));
-        this.elements.nameInput.addEventListener('blur', this.validateName.bind(this));
-        this.elements.dateInput.addEventListener('input', this.validateForm.bind(this));
-        this.elements.dateInput.addEventListener('blur', this.validateDate.bind(this));
+        // Validación de contraseña en tiempo real
+        if (this.elements.contraseñaInput) {
+            this.elements.contraseñaInput.addEventListener('input', this.validatePassword.bind(this));
+            console.log('✅ Event listener de contraseña configurado');
+        }
 
         // Eventos del chatbot
-        this.elements.chatForm.addEventListener('submit', this.handleChatSubmit.bind(this));
-        this.elements.configBtn.addEventListener('click', this.openConfigModal.bind(this));
-        this.elements.changeUserBtn.addEventListener('click', this.changeUser.bind(this));
-        this.elements.minimizeBtn.addEventListener('click', this.toggleMinimize.bind(this));
+        if (this.elements.chatForm) {
+            this.elements.chatForm.addEventListener('submit', this.handleChatSubmit.bind(this));
+        }
+        if (this.elements.changeUserBtn) {
+            this.elements.changeUserBtn.addEventListener('click', this.changeUser.bind(this));
+        }
+        if (this.elements.minimizeBtn) {
+            this.elements.minimizeBtn.addEventListener('click', this.toggleMinimize.bind(this));
+        }
+
+        // Delegación de eventos en el área de mensajes (para tarjetas del menú)
+        if (this.elements.chatMessages) {
+            this.elements.chatMessages.addEventListener('click', this.handleMenuCardClick.bind(this));
+        }
+    }
+
+    /**
+     * Valida la contraseña en tiempo real
+     */
+    validatePassword() {
+        const barra = document.getElementById('fuerza-contraseña');
+        const mensaje = document.getElementById('mensaje-contraseña');
         
-        // Event listener para las opciones del menú (delegación de eventos)
-        this.elements.chatMessages.addEventListener('click', this.handleMenuCardClick.bind(this));
+        // Verificar que los elementos existan
+        if (!barra || !mensaje || !this.elements.contraseñaInput) {
+            console.warn('⚠️ Elementos de validación de contraseña no encontrados');
+            return;
+        }
+        
+        const valor = this.elements.contraseñaInput.value;
+        let fuerza = 0;
 
-        // Eventos de teclado globales
-        document.addEventListener('keydown', this.handleKeyDown.bind(this));
+        if (valor.length >= 8) fuerza++;
+        if (/[A-Z]/.test(valor)) fuerza++;
+        if (/[0-9]/.test(valor)) fuerza++;
+        if (/[^A-Za-z0-9]/.test(valor)) fuerza++;
 
-        // Eventos de clic en overlay
-        this.elements.overlay.addEventListener('click', this.handleOverlayClick.bind(this));
+        if (valor.length === 0) {
+            barra.style.background = '';
+            mensaje.textContent = '';
+        } else if (fuerza <= 1) {
+            barra.style.background = 'red';
+            mensaje.textContent = 'Contraseña no segura';
+            mensaje.style.color = 'red';
+        } else if (fuerza === 2) {
+            barra.style.background = 'orange';
+            mensaje.textContent = 'La contraseña puede mejorar';
+            mensaje.style.color = 'orange';
+        } else if (fuerza >= 3) {
+            barra.style.background = 'green';
+            mensaje.textContent = 'Contraseña segura';
+            mensaje.style.color = 'green';
+        }
+    }
+
+    /**
+     * Verifica el estado del login
+     */
+    checkLoginStatus() {
+        const savedLogin = localStorage.getItem('user_login');
+        if (savedLogin) {
+            try {
+                this.state.loginData = JSON.parse(savedLogin);
+                this.state.isLoggedIn = true;
+                console.log('👤 Usuario ya logueado:', this.state.loginData.nombre);
+                this.showChatbotSection();
+            } catch (error) {
+                console.error('❌ Error parseando datos de login:', error);
+                this.showLoginSection();
+            }
+        } else {
+            console.log('🔐 No hay sesión activa, mostrando login');
+            this.showLoginSection();
+        }
+    }
+
+    /**
+     * Maneja el envío del formulario de login
+     */
+    handleLoginSubmit(event) {
+        event.preventDefault();
+        
+        console.log('🔐 Procesando login...');
+        console.log('Evento recibido:', event);
+        
+        // Verificar que los elementos existan
+        if (!this.elements.nombreInput || !this.elements.correoInput || !this.elements.contraseñaInput || !this.elements.mensajeExito) {
+            console.error('❌ Elementos del formulario de login no encontrados');
+            return;
+        }
+        
+        // Obtener datos del formulario
+        const nombre = this.elements.nombreInput.value.trim();
+        const correo = this.elements.correoInput.value.trim();
+        const contraseña = this.elements.contraseñaInput.value.trim();
+        
+        // Validaciones básicas
+        if (!nombre || !correo || !contraseña) {
+            this.elements.mensajeExito.textContent = 'Por favor completa todos los campos';
+            this.elements.mensajeExito.style.color = 'red';
+            return;
+        }
+        
+        if (contraseña.length < 8) {
+            this.elements.mensajeExito.textContent = 'La contraseña debe tener al menos 8 caracteres';
+            this.elements.mensajeExito.style.color = 'red';
+            return;
+        }
+        
+        // Guardar datos de login
+        this.state.loginData = { nombre, correo, contraseña };
+        this.state.isLoggedIn = true;
+        this.state.userName = nombre; // Usar el nombre del login para el chatbot
+        
+        // Guardar en localStorage
+        localStorage.setItem('user_login', JSON.stringify(this.state.loginData));
+        
+        // Mostrar mensaje de éxito
+        this.elements.mensajeExito.textContent = '¡Login exitoso! Redirigiendo al chatbot...';
+        this.elements.mensajeExito.style.color = 'green';
+        
+        console.log('✅ Login exitoso para:', nombre);
+        
+        // Transición al chatbot después de un breve delay
+        console.log('⏰ Programando transición al chatbot en 1.5 segundos...');
+        setTimeout(() => {
+            console.log('🚀 Ejecutando transición al chatbot...');
+            this.showChatbotSection();
+        }, 1500);
+    }
+
+    /**
+     * Muestra la sección de login
+     */
+    showLoginSection() {
+        if (!this.elements.loginSection || !this.elements.chatbotSection) {
+            console.error('❌ Elementos de sección no encontrados');
+            return;
+        }
+        
+        this.elements.loginSection.style.display = 'block';
+        this.elements.chatbotSection.style.display = 'none';
+        this.state.isLoggedIn = false;
+        
+        // Limpiar formulario
+        this.elements.nombreInput.value = '';
+        this.elements.correoInput.value = '';
+        this.elements.contraseñaInput.value = '';
+        this.elements.mensajeExito.textContent = '';
+        
+        console.log('🔐 Mostrando sección de login');
+    }
+
+    /**
+     * Muestra la sección del chatbot
+     */
+    showChatbotSection() {
+        console.log('💬 Iniciando transición al chatbot...');
+        
+        // Verificar que los elementos existan
+        if (!this.elements.loginSection || !this.elements.chatbotSection || !this.elements.chatbot) {
+            console.error('❌ Elementos del chatbot no encontrados');
+            return;
+        }
+        
+        // Ocultar login
+        this.elements.loginSection.style.display = 'none';
+        
+        // Mostrar sección del chatbot
+        this.elements.chatbotSection.style.display = 'block';
+        
+        // Mostrar el chatbot
+        this.elements.chatbot.style.display = 'flex';
+        
+        console.log('✅ Sección del chatbot mostrada');
+        
+        // Inicializar el chatbot
+        this.showChatbot();
+        
+        // Verificar conexión en segundo plano (no bloquea)
+        this.checkBackendConnection();
+    }
+
+    /**
+     * Maneja el logout
+     */
+    handleLogout() {
+        console.log('🚪 Cerrando sesión...');
+        
+        // Limpiar datos de login
+        localStorage.removeItem('user_login');
+        localStorage.removeItem('chatbot_user');
+        localStorage.removeItem('chatbot_date');
+        
+        // Resetear estado
+        this.state.isLoggedIn = false;
+        this.state.loginData = { nombre: '', correo: '', contraseña: '' };
+        this.state.userName = '';
+        this.state.selectedDate = '';
+        this.state.conversationHistory = [];
+        
+        // Restaurar color de fondo
+        document.body.style.backgroundColor = '';
+        
+        // Mostrar login
+        this.showLoginSection();
+        
+        console.log('✅ Sesión cerrada correctamente');
     }
 
     /**
@@ -272,13 +442,8 @@ class ChatbotApp {
             
             this.state.isConfigured = configStatus.configured;
             
-            if (!this.state.isConfigured) {
-                console.log('⚠️ Sistema no configurado - API Key necesaria');
-                this.openConfigModal();
-            } else {
-                console.log('✅ Sistema configurado correctamente');
-                this.checkSavedUser();
-            }
+            console.log('✅ Sistema configurado correctamente');
+            this.checkSavedUser();
             
         } catch (error) {
             console.error('❌ Error verificando configuración:', error);
@@ -300,123 +465,51 @@ class ChatbotApp {
             this.state.selectedDate = savedDate;
             this.showChatbot();
         } else {
-            this.openModal();
+            // Si hay datos de login, usar el nombre del login como usuario del chatbot
+            if (this.state.isLoggedIn && this.state.loginData.nombre) {
+                console.log(`👤 Usando nombre del login: ${this.state.loginData.nombre}`);
+                this.state.userName = this.state.loginData.nombre;
+                this.state.selectedDate = new Date().toISOString().split('T')[0];
+                this.showChatbot();
+            } else {
+                // Si no hay datos de login, mostrar login
+                this.showLoginSection();
+            }
         }
     }
 
-    /**
-     * Abre el modal inicial
-     */
-    openModal() {
-        console.log('📝 Abriendo modal inicial...');
-        
-        this.state.isModalOpen = true;
-        this.elements.overlay.classList.add('active');
-        this.elements.modal.classList.add('active');
-        this.elements.modal.setAttribute('aria-hidden', 'false');
-        this.elements.overlay.setAttribute('aria-hidden', 'false');
-        
-        // Ocultar otros elementos
-        this.elements.cancelMessage.style.display = 'none';
-        this.elements.chatbot.style.display = 'none';
-        
-        // Configurar focus trap y enfocar el nombre
-        setTimeout(() => {
-            this.setupFocusTrap();
-            this.elements.nameInput.focus();
-        }, 100);
-        
-        // Validar formulario inicial
-        this.validateForm();
-    }
 
-    /**
-     * Cierra el modal
-     */
-    closeModal() {
-        console.log('❌ Cerrando modal...');
-        
-        this.state.isModalOpen = false;
-        this.elements.overlay.classList.remove('active');
-        this.elements.modal.classList.remove('active');
-        this.elements.modal.setAttribute('aria-hidden', 'true');
-        this.elements.overlay.setAttribute('aria-hidden', 'true');
-    }
 
-    /**
-     * Maneja el envío del formulario del modal
-     */
-    handleModalSubmit(event) {
-        event.preventDefault();
-        
-        console.log('✅ Enviando formulario del modal...');
-        
-        if (!this.validateForm()) {
-            console.log('❌ Formulario inválido');
-            return;
-        }
 
-        // Obtener y limpiar datos
-        this.state.userName = this.elements.nameInput.value.trim();
-        this.state.selectedDate = this.elements.dateInput.value;
 
-        // Guardar en localStorage
-        localStorage.setItem('chatbot_user', this.state.userName);
-        localStorage.setItem('chatbot_date', this.state.selectedDate);
-
-        console.log(`✅ Datos guardados - Usuario: ${this.state.userName}, Fecha: ${this.state.selectedDate}`);
-
-        // Cerrar modal y mostrar chatbot
-        this.closeModal();
-        this.showChatbot();
-    }
-
-    /**
-     * Maneja la cancelación del modal
-     */
-    handleModalCancel() {
-        console.log('❌ Modal cancelado por el usuario');
-        
-        this.closeModal();
-        this.showCancelMessage();
-    }
-
-    /**
-     * Muestra el mensaje de cancelación
-     */
-    showCancelMessage() {
-        this.elements.cancelMessage.style.display = 'block';
-        this.elements.cancelMessage.classList.add('fade-in');
-        this.elements.reopenModalBtn.focus();
-    }
 
     /**
      * Muestra el chatbot con saludo personalizado
      */
     showChatbot() {
         console.log('💬 Mostrando chatbot...');
-        
-        // Cambiar el color de fondo de toda la pantalla después del login
-        document.body.style.backgroundColor = '#54555c';
-        
-        this.elements.chatbot.style.display = 'flex';
-        this.elements.chatbot.classList.add('fade-in');
+        console.log('Estado del chatbot:', {
+            userName: this.state.userName,
+            chatMessages: this.elements.chatMessages,
+            chatbot: this.elements.chatbot
+        });
         
         // Limpiar mensajes anteriores
-        this.elements.chatMessages.innerHTML = '';
-        this.state.conversationHistory = [];
-        
-        // Mostrar saludo personalizado y luego el menú
-        setTimeout(() => {
-            this.addBotMessage(this.createGreetingMessage());
+        if (this.elements.chatMessages) {
+            this.elements.chatMessages.innerHTML = '';
+            this.state.conversationHistory = [];
             
-            // Mostrar el menú después del saludo
+            // Mostrar saludo personalizado
             setTimeout(() => {
-                this.showMenuOptions();
-            }, 1000);
-            
-            this.elements.chatInput.focus();
-        }, 500);
+                this.addBotMessage(`¡Hola, ${this.state.userName}! Soy tu asistente de proyectos. ¿En qué puedo ayudarte hoy?\n\nMOSTRAR_MENU_PRINCIPAL`);
+                // Mostrar menú después del saludo
+                if (this.elements.chatInput) {
+                    this.elements.chatInput.focus();
+                }
+            }, 500);
+        } else {
+            console.error('❌ No se encontró el elemento chatMessages');
+        }
     }
 
     /**
@@ -431,6 +524,27 @@ class ChatbotApp {
         });
 
         return `¡Hola, ${this.state.userName}! Hoy es ${formattedDate}. Soy tu asistente para la gestión de proyectos. Por favor, selecciona una de las siguientes opciones:`;
+    }
+
+    /**
+     * Carga las opciones del menú desde el backend
+     */
+    async loadMenuOptions() {
+        try {
+            if (!this.state.menuSessionId) {
+                this.state.menuSessionId = 'session_' + this.state.userId + '_' + Date.now();
+            }
+            const url = `${this.config.backendUrl}/api/menu/opciones?sessionId=${this.state.menuSessionId}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            this.state.menuSessionActive = data.estado === 'activo';
+            return data;
+        } catch (err) {
+            console.error('❌ Error cargando menú:', err);
+            this.showToast('Error al cargar el menú', 'error');
+            return null;
+        }
     }
 
     /**
@@ -506,6 +620,90 @@ class ChatbotApp {
             4: "Finalizar sesión y salir del sistema"
         };
         return descriptions[optionId] || "Acción del menú";
+    }
+
+    /**
+     * Maneja el clic en las tarjetas del menú
+     */
+    handleMenuCardClick(event) {
+        const card = event.target.closest('.menu-option-card');
+        if (!card) return;
+        
+        const optionId = parseInt(card.dataset.optionId, 10);
+        const action = card.dataset.optionAction;
+        const desc = card.querySelector('.menu-option-title')?.textContent || '';
+
+        this.handleMenuOptionClick(optionId, action, desc);
+    }
+
+    /**
+     * Maneja la selección de una opción del menú
+     */
+    handleMenuOptionClick(optionId, action, description) {
+        this.addUserMessage(`${optionId}. ${description}`);
+
+        if (optionId === 4) {
+            // Reiniciar sesión / limpiar chat
+            this.addBotMessage('👋 ¡Sesión reiniciada!');
+            setTimeout(() => this.reiniciarSesionMenu(), 700);
+            return;
+        }
+
+        if (optionId === 1) this.state.waitingForProjectIdea = true;
+        if (optionId === 2) this.state.waitingForNewTask = true;
+
+        this.processMenuAction(action, description, optionId);
+    }
+
+    /**
+     * Procesa la acción del menú
+     */
+    async processMenuAction(action, description, optionId) {
+        try {
+            const url = `${this.config.backendUrl}/api/menu/procesar/${optionId}?sessionId=${this.state.menuSessionId}`;
+            const res = await fetch(url, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' } 
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const resultado = await res.text();
+            this.addBotMessage(resultado);
+
+            // Heurísticas para estados de espera
+            if (optionId === 2 && this.esRespuestaSolicitandoNuevaTarea(resultado)) {
+                this.state.waitingForNewTask = true;
+            }
+            if (optionId === 3 && this.esRespuestaSolicitandoNumeroTarea(resultado)) {
+                this.state.waitingForTaskNumber = true;
+            }
+
+            if (action === 'salir') {
+                this.state.menuSessionActive = false;
+                setTimeout(() => this.reiniciarSesionMenu(), 1500);
+            }
+        } catch (err) {
+            console.error('❌ Error procesando opción:', err);
+            this.addBotMessage('Ocurrió un error al procesar tu selección. Intenta de nuevo.');
+            setTimeout(() => this.showMenuOptions(), 900);
+        }
+    }
+
+    /**
+     * Reinicia la sesión del menú
+     */
+    async reiniciarSesionMenu() {
+        this.state.menuSessionId = 'session_' + this.state.userId + '_' + Date.now();
+        this.state.menuSessionActive = true;
+        this.state.waitingForProjectIdea = false;
+        this.state.waitingForNewTask = false;
+        this.state.waitingForTaskNumber = false;
+        
+        if (this.elements.chatMessages) {
+            this.elements.chatMessages.innerHTML = '';
+        }
+        
+        this.addBotMessage('🔄 Nueva sesión iniciada.');
+        setTimeout(() => this.showMenuOptions(), 600);
     }
 
     /**
@@ -659,62 +857,37 @@ class ChatbotApp {
             return;
         }
 
-        if (message.length > this.config.maxMessageLength) {
-            this.showToast(`El mensaje es demasiado largo (máximo ${this.config.maxMessageLength} caracteres)`, 'error');
-            return;
-        }
-
-        if (!this.state.isConnected) {
-            this.showToast('No hay conexión con el backend', 'error');
-            return;
-        }
-
         console.log(`💬 Enviando mensaje: "${message}"`);
 
         // Añadir mensaje del usuario
         this.addUserMessage(message);
         
-        // Limpiar input y deshabilitar botones
+        // Limpiar input
         this.elements.chatInput.value = '';
-        this.setButtonsEnabled(false);
         
         // Mostrar indicador de estado
         this.showStatusIndicator('Procesando mensaje...');
 
         try {
-            // Verificar si estamos esperando una idea de proyecto
+            // Manejar diferentes estados del menú
             if (this.state.waitingForProjectIdea) {
-                console.log('💡 Enviando idea de proyecto al endpoint del menú...');
                 await this.sendProjectIdea(message);
-                // Resetear el estado
                 this.state.waitingForProjectIdea = false;
             } else if (this.state.waitingForNewTask) {
-                console.log('📝 Enviando nueva tarea al endpoint del menú...');
                 await this.sendNewTask(message);
-                // Resetear el estado
                 this.state.waitingForNewTask = false;
             } else if (this.state.waitingForTaskNumber) {
-                console.log('🎯 Enviando número de tarea al endpoint del menú...');
                 await this.sendTaskNumber(message);
-                // Resetear el estado
                 this.state.waitingForTaskNumber = false;
             } else {
-                // Envío normal al webhook de chat
+                // Envío simple al webhook de chat
                 await this.sendWebhookMessage(message);
             }
         } catch (error) {
             console.error(`❌ Error enviando mensaje:`, error);
-            
-            // Verificar si es un error de configuración
-            if (error.message && error.message.includes('API Key')) {
-                this.showToast('API Key no configurada. Configúrala desde el botón ⚙️', 'warning');
-                this.addBotMessage('⚠️ Para usar el chatbot necesitas configurar una API Key de OpenAI. Haz clic en el botón ⚙️ en la parte superior.');
-            } else {
-                this.showToast(`Error al enviar mensaje: ${error.message}`, 'error');
-                this.addBotMessage('Lo siento, ha ocurrido un error al procesar tu mensaje. Por favor inténtalo de nuevo.');
-            }
+            this.showToast(`Error al enviar mensaje: ${error.message}`, 'error');
+            this.addBotMessage('Lo siento, ha ocurrido un error al procesar tu mensaje. Por favor inténtalo de nuevo.');
         } finally {
-            this.setButtonsEnabled(true);
             this.hideStatusIndicator();
             this.elements.chatInput.focus();
         }
@@ -909,6 +1082,63 @@ class ChatbotApp {
             usuario: responseData.usuario,
             estado: responseData.estado
         });
+    }
+
+    /**
+     * Envía una idea de proyecto
+     */
+    async sendProjectIdea(idea) {
+        const url = `${this.config.backendUrl}/api/menu/procesar/1/datos?sessionId=${this.state.menuSessionId}`;
+        const res = await fetch(url, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'text/plain' }, 
+            body: idea 
+        });
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        const text = await res.text();
+        this.addBotMessage(text);
+        this.state.conversationHistory.push(
+            { role: 'user', content: idea }, 
+            { role: 'assistant', content: text }
+        );
+    }
+
+    /**
+     * Envía una nueva tarea
+     */
+    async sendNewTask(tarea) {
+        const url = `${this.config.backendUrl}/api/menu/procesar/2/datos?sessionId=${this.state.menuSessionId}`;
+        const res = await fetch(url, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'text/plain' }, 
+            body: tarea 
+        });
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        const text = await res.text();
+        this.addBotMessage(text);
+        this.state.conversationHistory.push(
+            { role: 'user', content: tarea }, 
+            { role: 'assistant', content: text }
+        );
+    }
+
+    /**
+     * Envía un número de tarea
+     */
+    async sendTaskNumber(num) {
+        const url = `${this.config.backendUrl}/api/menu/procesar/3/datos?sessionId=${this.state.menuSessionId}`;
+        const res = await fetch(url, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'text/plain' }, 
+            body: num 
+        });
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        const text = await res.text();
+        this.addBotMessage(text);
+        this.state.conversationHistory.push(
+            { role: 'user', content: num }, 
+            { role: 'assistant', content: text }
+        );
     }
 
     /**
@@ -1210,20 +1440,17 @@ class ChatbotApp {
     changeUser() {
         console.log('🔄 Cambiando usuario...');
         
-        localStorage.removeItem('chatbot_user');
-        localStorage.removeItem('chatbot_date');
+        // Limpiar datos de login
+        localStorage.removeItem('user_login');
         
-        // Restaurar el color de fondo original
-        document.body.style.backgroundColor = '';
-        
-        this.elements.chatbot.style.display = 'none';
-        this.elements.nameInput.value = '';
-        this.elements.dateInput.value = '';
-        this.setCurrentDate();
-        
+        // Resetear estado
+        this.state.isLoggedIn = false;
+        this.state.loginData = { nombre: '', correo: '', contraseña: '' };
+        this.state.userName = '';
         this.state.conversationHistory = [];
         
-        this.openModal();
+        // Mostrar login
+        this.showLoginSection();
     }
 
     /**
@@ -1246,185 +1473,8 @@ class ChatbotApp {
         }
     }
 
-    // ============================================
-    // MÉTODOS DE CONFIGURACIÓN DE API KEY
-    // ============================================
 
-    /**
-     * Abre el modal de configuración
-     */
-    openConfigModal() {
-        console.log('🔑 Abriendo modal de configuración');
-        
-        this.state.isConfigModalOpen = true;
-        this.elements.overlay.classList.add('active');
-        this.elements.configModal.classList.add('active');
-        this.elements.configModal.setAttribute('aria-hidden', 'false');
-        this.elements.overlay.setAttribute('aria-hidden', 'false');
-        
-        // Ocultar otros elementos
-        this.elements.modal.style.display = 'none';
-        this.elements.cancelMessage.style.display = 'none';
-        this.elements.chatbot.style.display = 'none';
-        
-        // Limpiar formulario
-        this.elements.apiKeyInput.value = '';
-        this.elements.apiKeyError.textContent = '';
-        this.elements.configStatus.style.display = 'none';
-        this.elements.configSaveBtn.disabled = true;
-        
-        // Configurar focus
-        setTimeout(() => {
-            this.elements.apiKeyInput.focus();
-        }, 100);
-    }
-
-    /**
-     * Cierra el modal de configuración
-     */
-    closeConfigModal() {
-        console.log('❌ Cerrando modal de configuración');
-        
-        this.state.isConfigModalOpen = false;
-        this.elements.overlay.classList.remove('active');
-        this.elements.configModal.classList.remove('active');
-        this.elements.configModal.setAttribute('aria-hidden', 'true');
-        this.elements.overlay.setAttribute('aria-hidden', 'true');
-    }
-
-    /**
-     * Valida el input de API Key en tiempo real
-     */
-    validateApiKeyInput() {
-        const apiKey = this.elements.apiKeyInput.value.trim();
-        
-        if (apiKey.length === 0) {
-            this.setFieldError(this.elements.apiKeyInput, this.elements.apiKeyError, '');
-            this.elements.configSaveBtn.disabled = true;
-            return false;
-        }
-        
-        if (!apiKey.startsWith('sk-')) {
-            this.setFieldError(this.elements.apiKeyInput, this.elements.apiKeyError, 
-                              'La API Key debe comenzar con "sk-"');
-            this.elements.configSaveBtn.disabled = true;
-            return false;
-        }
-        
-        if (apiKey.length < 20) {
-            this.setFieldError(this.elements.apiKeyInput, this.elements.apiKeyError, 
-                              'La API Key parece ser muy corta');
-            this.elements.configSaveBtn.disabled = true;
-            return false;
-        }
-        
-        this.clearFieldError(this.elements.apiKeyInput, this.elements.apiKeyError);
-        this.elements.configSaveBtn.disabled = false;
-        return true;
-    }
-
-    /**
-     * Maneja el envío del formulario de configuración
-     */
-    async handleConfigSubmit(event) {
-        event.preventDefault();
-        
-        const apiKey = this.elements.apiKeyInput.value.trim();
-        
-        if (!this.validateApiKeyInput()) {
-            return;
-        }
-
-        console.log('🔑 Guardando API Key...');
-        
-        // Mostrar estado de validación
-        this.showConfigStatus('⏳', 'Validando API Key con OpenAI...', 'validating');
-        this.elements.configSaveBtn.disabled = true;
-        
-        try {
-            // Validar API Key
-            const validateResponse = await fetch(`${this.config.backendUrl}/api/config/validate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ apiKey })
-            });
-            
-            const validateResult = await validateResponse.json();
-            
-            if (!validateResult.valid) {
-                this.showConfigStatus('❌', validateResult.message || 'API Key inválida', 'error');
-                this.elements.configSaveBtn.disabled = false;
-                return;
-            }
-            
-            // Guardar API Key
-            const saveResponse = await fetch(`${this.config.backendUrl}/api/config/api-key`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ apiKey })
-            });
-            
-            const saveResult = await saveResponse.json();
-            
-            if (saveResult.success) {
-                this.showConfigStatus('✅', 'API Key configurada correctamente', 'success');
-                this.state.isConfigured = true;
-                
-                setTimeout(() => {
-                    this.closeConfigModal();
-                    this.checkSavedUser();
-                    this.showToast('API Key configurada correctamente', 'success');
-                }, 1500);
-                
-            } else {
-                this.showConfigStatus('❌', saveResult.message || 'Error guardando API Key', 'error');
-                this.elements.configSaveBtn.disabled = false;
-            }
-            
-        } catch (error) {
-            console.error('❌ Error configurando API Key:', error);
-            this.showConfigStatus('❌', 'Error de conexión con el servidor', 'error');
-            this.elements.configSaveBtn.disabled = false;
-        }
-    }
-
-    /**
-     * Maneja el botón "Saltar por ahora"
-     */
-    handleConfigSkip() {
-        console.log('⏭️ Saltando configuración de API Key');
-        
-        this.closeConfigModal();
-        this.state.isConfigured = false;
-        this.checkSavedUser();
-        
-        this.showToast('Puedes configurar la API Key más tarde desde el botón ⚙️', 'warning');
-    }
-
-    /**
-     * Muestra el estado de la configuración
-     */
-    showConfigStatus(icon, text, type = '') {
-        this.elements.configStatus.style.display = 'block';
-        this.elements.configStatus.className = `config-status ${type}`;
-        
-        const iconElement = this.elements.configStatus.querySelector('.status-icon');
-        const textElement = this.elements.configStatus.querySelector('.status-text');
-        
-        iconElement.textContent = icon;
-        textElement.textContent = text;
-    }
-
-    /**
-     * Configura el modo debug
-     */
-    setupDebugMode() {
-        this.elements.debugInfo.style.display = 'block';
-        this.debugLog('Modo debug activado', {
-            backendUrl: this.config.backendUrl,
-            userId: this.state.userId
-        });
-    }
+    
 
     /**
      * Registra información de debug
@@ -1527,129 +1577,7 @@ class ChatbotApp {
     // ============================================
     // MÉTODOS DE VALIDACIÓN Y ACCESIBILIDAD
     // (Reutilizados del código anterior)
-    // ============================================
-
-    setupFocusTrap() {
-        this.state.focusableElements = this.elements.modal.querySelectorAll(
-            'input:not([disabled]), button:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        );
-        this.state.currentFocusIndex = 0;
-    }
-
-    handleTabNavigation(event) {
-        if (!this.state.isModalOpen || this.state.focusableElements.length === 0) return;
-
-        const firstElement = this.state.focusableElements[0];
-        const lastElement = this.state.focusableElements[this.state.focusableElements.length - 1];
-
-        if (event.shiftKey) {
-            if (document.activeElement === firstElement) {
-                event.preventDefault();
-                lastElement.focus();
-            }
-        } else {
-            if (document.activeElement === lastElement) {
-                event.preventDefault();
-                firstElement.focus();
-            }
-        }
-    }
-
-    handleKeyDown(event) {
-        switch (event.key) {
-            case 'Escape':
-                if (this.state.isModalOpen) {
-                    event.preventDefault();
-                    this.handleModalCancel();
-                }
-                break;
-            case 'Enter':
-                if (this.state.isModalOpen && event.target === this.elements.nameInput) {
-                    event.preventDefault();
-                    this.elements.dateInput.focus();
-                } else if (this.state.isModalOpen && event.target === this.elements.dateInput) {
-                    event.preventDefault();
-                    if (!this.elements.acceptBtn.disabled) {
-                        this.handleModalSubmit(event);
-                    }
-                }
-                break;
-            case 'Tab':
-                if (this.state.isModalOpen) {
-                    this.handleTabNavigation(event);
-                }
-                break;
-        }
-    }
-
-    handleOverlayClick(event) {
-        if (event.target === this.elements.overlay && this.state.isModalOpen) {
-            this.handleModalCancel();
-        }
-    }
-
-    validateName() {
-        const name = this.elements.nameInput.value.trim();
-        const nameError = this.elements.nameError;
-        
-        if (name.length === 0) {
-            this.setFieldError(this.elements.nameInput, nameError, 'El nombre es obligatorio');
-            return false;
-        } else if (name.length < 2) {
-            this.setFieldError(this.elements.nameInput, nameError, 'El nombre debe tener al menos 2 caracteres');
-            return false;
-        } else {
-            this.clearFieldError(this.elements.nameInput, nameError);
-            return true;
-        }
-    }
-
-    validateDate() {
-        const dateValue = this.elements.dateInput.value;
-        const dateError = this.elements.dateError;
-        const selectedDate = new Date(dateValue);
-        const today = new Date();
-        
-        today.setHours(0, 0, 0, 0);
-        selectedDate.setHours(0, 0, 0, 0);
-        
-        if (!dateValue) {
-            this.setFieldError(this.elements.dateInput, dateError, 'La fecha es obligatoria');
-            return false;
-        } else if (isNaN(selectedDate.getTime())) {
-            this.setFieldError(this.elements.dateInput, dateError, 'La fecha no es válida');
-            return false;
-        } else if (selectedDate > today) {
-            this.setFieldError(this.elements.dateInput, dateError, 'La fecha no puede ser futura');
-            return false;
-        } else {
-            this.clearFieldError(this.elements.dateInput, dateError);
-            return true;
-        }
-    }
-
-    validateForm() {
-        const isNameValid = this.validateName();
-        const isDateValid = this.validateDate();
-        const isFormValid = isNameValid && isDateValid;
-        
-        this.elements.acceptBtn.disabled = !isFormValid;
-        
-        return isFormValid;
-    }
-
-    setFieldError(inputElement, errorElement, message) {
-        inputElement.classList.add('invalid');
-        inputElement.setAttribute('aria-invalid', 'true');
-        errorElement.textContent = message;
-        errorElement.setAttribute('aria-live', 'polite');
-    }
-
-    clearFieldError(inputElement, errorElement) {
-        inputElement.classList.remove('invalid');
-        inputElement.setAttribute('aria-invalid', 'false');
-        errorElement.textContent = '';
-    }
+    // ===========================================
 }
 
 // Esta inicialización se movió al final del archivo para usar la variable global
