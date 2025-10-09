@@ -86,7 +86,32 @@ public class ChatGptService {
                 })
                 .onErrorResume(WebClientResponseException.class, ex -> {
                     logger.error("Error al comunicarse con ChatGPT: {} - {}", ex.getStatusCode(), ex.getResponseBodyAsString());
-                    return Mono.just("Error al procesar tu mensaje. Por favor, inténtalo más tarde.");
+                    
+                    String errorMessage = ex.getResponseBodyAsString();
+                    if (errorMessage.contains("insufficient_quota")) {
+                        return Mono.just("❌ **Cuota de OpenAI excedida**\n\n" +
+                                       "Tu cuenta de OpenAI ha alcanzado el límite de uso.\n\n" +
+                                       "**Para solucionarlo:**\n" +
+                                       "• Ve a https://platform.openai.com/account/billing\n" +
+                                       "• Agrega créditos a tu cuenta\n" +
+                                       "• O espera hasta el próximo período de facturación\n\n" +
+                                       "Una vez resuelto, la funcionalidad funcionará correctamente.");
+                    } else if (errorMessage.contains("invalid_api_key")) {
+                        return Mono.just("❌ **API Key inválida**\n\n" +
+                                       "La API key de OpenAI no es válida o ha expirado.\n\n" +
+                                       "**Para solucionarlo:**\n" +
+                                       "• Ve a https://platform.openai.com/account/api-keys\n" +
+                                       "• Crea una nueva API key\n" +
+                                       "• Actualiza la configuración del backend");
+                    } else {
+                        return Mono.just("❌ **Error de conexión con OpenAI**\n\n" +
+                                       "No se pudo conectar con la API de OpenAI.\n\n" +
+                                       "**Posibles causas:**\n" +
+                                       "• Problemas de conectividad\n" +
+                                       "• Servicio temporalmente no disponible\n" +
+                                       "• Límite de velocidad alcanzado\n\n" +
+                                       "Por favor, inténtalo más tarde.");
+                    }
                 })
                 .onErrorResume(Exception.class, ex -> {
                     logger.error("Error inesperado al comunicarse con ChatGPT", ex);

@@ -297,14 +297,19 @@ public class MenuService {
         } catch (Exception e) {
             logger.error("❌ Error al comunicarse con ChatGPT para procesar idea de proyecto", e);
             return "🚀 **DESARROLLO DE PROYECTO**\n\n" +
-                   "❌ No pude conectar con ChatGPT en este momento.\n\n" +
+                   "❌ **Error de conexión con la API de OpenAI**\n\n" +
                    "💡 **Tu idea de proyecto:** " + ideaProyecto + "\n\n" +
+                   "**Posibles causas del error:**\n" +
+                   "• API key de OpenAI incorrecta o expirada\n" +
+                   "• Problemas de conectividad\n" +
+                   "• Límite de uso de la API alcanzado\n\n" +
                    "**Guía básica para desarrollar tu proyecto:**\n" +
                    "1. Define el objetivo principal de tu idea\n" +
                    "2. Identifica tu público objetivo\n" +
                    "3. Establece un presupuesto estimado\n" +
                    "4. Define las fechas de inicio y fin\n" +
                    "5. Crea la lista de características principales\n\n" +
+                   "🔧 **Para solucionar:** Verifica la configuración de la API key en el backend\n\n" +
                    "MOSTRAR_MENU_PRINCIPAL";
         }
     }

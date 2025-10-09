@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Login</title>
+</head>
+<body>
+    <h1>Test del Login</h1>
+    
+    <form id="form-login">
+        <div>
+            <label for="nombre">Nombre del Usuario</label>
+            <input type="text" id="nombre" name="nombre" placeholder="Ingrese su nombre" required>
+        </div>
+        
+        <div>
+            <label for="correo">Correo:</label>
+            <input type="email" id="correo" name="correo" placeholder="Ingrese su correo" required>
+        </div>
+        
+        <div>
+            <label for="contraseña">Contraseña:</label>
+            <input type="password" id="contraseña" name="contraseña" placeholder="Ingrese su contraseña" required>
+        </div>
+        
+        <button type="submit">Iniciar Sesión</button>
+        <div id="mensaje-exito" style="margin-top: 10px; font-weight: bold; color: green;"></div>
+    </form>
+
+    <script>
+        console.log('🔧 Script cargado');
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🎯 DOM cargado');
+            
+            const form = document.getElementById('form-login');
+            const nombreInput = document.getElementById('nombre');
+            const correoInput = document.getElementById('correo');
+            const contraseñaInput = document.getElementById('contraseña');
+            const mensajeExito = document.getElementById('mensaje-exito');
+            
+            console.log('🔍 Elementos encontrados:', {
+                form: form,
+                nombreInput: nombreInput,
+                correoInput: correoInput,
+                contraseñaInput: contraseñaInput,
+                mensajeExito: mensajeExito
+            });
+            
+            if (form) {
+                form.addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    console.log('🔐 Formulario enviado');
+                    
+                    const nombre = nombreInput.value.trim();
+                    const correo = correoInput.value.trim();
+                    const contraseña = contraseñaInput.value.trim();
+                    
+                    console.log('📝 Datos del formulario:', { nombre, correo, contraseña });
+                    
+                    if (!nombre || !correo || !contraseña) {
+                        mensajeExito.textContent = 'Por favor completa todos los campos';
+                        mensajeExito.style.color = 'red';
+                        return;
+                    }
+                    
+                    // Simular envío al backend
+                    mensajeExito.textContent = 'Enviando datos al backend...';
+                    mensajeExito.style.color = 'blue';
+                    
+                    fetch('http://localhost:8080/api/auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ correo, contraseña })
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        console.log('📡 Respuesta del backend:', result);
+                        
+                        if (result.success) {
+                            mensajeExito.textContent = '¡Login exitoso!';
+                            mensajeExito.style.color = 'green';
+                        } else {
+                            mensajeExito.textContent = result.message || 'Error en el login';
+                            mensajeExito.style.color = 'red';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ Error:', error);
+                        mensajeExito.textContent = 'Error de conexión';
+                        mensajeExito.style.color = 'red';
+                    });
+                });
+                
+                console.log('✅ Event listener configurado');
+            } else {
+                console.error('❌ Formulario no encontrado');
+            }
+        });
+    </script>
+</body>
+</html>
