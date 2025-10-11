@@ -51,7 +51,7 @@
         <div class="register-content">
             <div class="register-header">
                 <h2>Crear Cuenta</h2>
-                <button id="closeRegisterModal" class="btn-close-modal">&times;</button>
+                <button id="closeRegisterModal" class="btn-close-modal ">&times;</button>
             </div>
             
             <form id="form-register">
@@ -129,7 +129,22 @@
                 <button id="minimizeBtn" class="btn-icon" title="Minimizar chat" aria-label="Minimizar chat">
                     ➖
                 </button>
+                <button id="logoutBtn" class="btn-icon btn-logout" title="Cerrar sesión" aria-label="Cerrar sesión">
+                    🚪
+                </button>
             </div>
+        </div>
+
+        <!-- Botones fijos para gestión de tareas (se muestran después de crear proyecto) -->
+        <div id="fixedTaskButtons" class="fixed-task-buttons" style="display: none;">
+            <button id="fixedCreateTaskBtn" class="fixed-task-btn create-task-btn" title="Crear nueva tarea">
+                <span class="btn-icon">➕</span>
+                <span class="btn-text">Crear Tarea</span>
+            </button>
+            <button id="fixedViewTasksBtn" class="fixed-task-btn view-tasks-btn" title="Consultar tareas">
+                <span class="btn-icon">📋</span>
+                <span class="btn-text">Consultar Tareas</span>
+            </button>
         </div>
 
         <div id="chatMessages" class="chat-messages" aria-live="polite" aria-label="Mensajes del chat">
@@ -181,6 +196,104 @@
             <div class="popup-footer">
                 <button class="btn-popup btn-registrarse-popup" id="btn-registrarse-popup">Registrarse</button>
                 <button class="btn-popup btn-cancelar-popup" id="btn-cancelar-popup">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para crear proyecto -->
+    <div id="projectModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Crear Nuevo Proyecto</h3>
+                <button id="closeProjectModal" class="btn-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="projectForm">
+                    <div class="form-group">
+                        <label for="projectName">Nombre del Proyecto:</label>
+                        <input type="text" id="projectName" name="projectName" placeholder="Ingrese el nombre del proyecto" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Crear Proyecto</button>
+                        <button type="button" id="cancelProject" class="btn-secondary">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para agregar tarea -->
+    <div id="taskModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Agregar Tarea</h3>
+                <button id="closeTaskModal" class="btn-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="taskForm">
+                    <div class="form-group">
+                        <label for="taskName">Nombre de la Tarea:</label>
+                        <input type="text" id="taskName" name="taskName" placeholder="Ingrese el nombre de la tarea" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="taskDescription">Descripción:</label>
+                        <textarea id="taskDescription" name="taskDescription" placeholder="Descripción de la tarea (opcional)"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Agregar Tarea</button>
+                        <button type="button" id="cancelTask" class="btn-secondary">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para consultar tareas -->
+    <div id="tasksModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Consultar Tareas</h3>
+                <button id="closeTasksModal" class="btn-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="tasks-summary">
+                    <h4 id="currentProjectName">Proyecto Actual</h4>
+                    <div class="task-filters">
+                        <label for="statusFilter">Filtrar por estado:</label>
+                        <select id="statusFilter">
+                            <option value="all">Todas</option>
+                            <option value="new">Nuevas</option>
+                            <option value="active">Activas</option>
+                            <option value="closed">Cerradas</option>
+                        </select>
+                    </div>
+                    <div id="tasksList" class="tasks-list">
+                        <!-- Las tareas se mostrarán aquí -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para configurar API Key -->
+    <div id="configModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Configurar API Key</h3>
+                <button id="closeConfigModal" class="btn-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="configForm">
+                    <div class="form-group">
+                        <label for="apiKey">OpenAI API Key:</label>
+                        <input type="password" id="apiKey" name="apiKey" placeholder="Ingrese su API Key de OpenAI" required>
+                        <small class="form-help">Su API key se almacena de forma segura en el backend</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Guardar Configuración</button>
+                        <button type="button" id="cancelConfig" class="btn-secondary">Cancelar</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
