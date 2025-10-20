@@ -11,6 +11,9 @@ class ChatbotApp {
             debugMode: this.isLocalhost()
         };
 
+        // Token JWT para autenticación
+        this.jwtToken = localStorage.getItem('jwt_token');
+
         // Referencias a elementos del DOM
         this.elements = {
             // Elementos del login
@@ -120,6 +123,22 @@ class ChatbotApp {
     }
 
     /**
+     * Obtiene headers con autenticación JWT
+     */
+    getAuthHeaders() {
+        const token = localStorage.getItem('jwt_token');
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        return headers;
+    }
+
+    /**
      * Configura todos los event listeners
      */
     setupEventListeners() {
@@ -132,6 +151,9 @@ class ChatbotApp {
         } else {
             console.error('❌ No se encontró el formulario de login');
         }
+        
+        // Eventos 2FA
+        this.setup2FAEventListeners();
         
         
         // Event listeners del modal de registro
@@ -231,40 +253,30 @@ class ChatbotApp {
     }
 
     /**
-     * Maneja el envío del formulario de login
+     * Maneja el envío del formulario de login con CAPTCHA
      */
     handleLoginSubmit(event) {
         event.preventDefault();
         
-        console.log('🔐 Procesando login...');
-        console.log('Evento recibido:', event);
-        console.log('🔍 Elementos encontrados:', {
-            nombreInput: this.elements.nombreInput,
-            correoInput: this.elements.correoInput,
-            contraseñaInput: this.elements.contraseñaInput,
-            mensajeExito: this.elements.mensajeExito
-        });
-        
-        // Verificar que los elementos existan
-        if (!this.elements.nombreInput || !this.elements.correoInput || !this.elements.contraseñaInput || !this.elements.mensajeExito) {
-            console.error('❌ Elementos del formulario de login no encontrados');
-            return;
-        }
+        console.log('🔐 Procesando login con CAPTCHA...');
         
         // Obtener datos del formulario
-        const nombre = this.elements.nombreInput.value.trim();
         const correo = this.elements.correoInput.value.trim();
         const contraseña = this.elements.contraseñaInput.value.trim();
         
         // Validaciones básicas
-        if (!nombre || !correo || !contraseña) {
-            this.elements.mensajeExito.textContent = 'Por favor completa todos los campos';
-            this.elements.mensajeExito.style.color = 'red';
+        if (!correo || !contraseña) {
+            this.showMessage('Por favor completa correo y contraseña', 'error');
             return;
         }
         
+        // Verificar que el CAPTCHA esté resuelto
+        if (!this.captchaVerified) {
+            this.showMessage('Por favor resuelve el CAPTCHA primero', 'error');
+            return;
+        }
         
-        // Enviar datos al backend para login
+        // Proceder con login normal (sin 2FA)
         this.loginUser({ correo, contraseña });
     }
 
@@ -286,18 +298,22 @@ class ChatbotApp {
             const result = await response.json();
             console.log('📡 Respuesta del backend:', result);
             
-            if (result.success) {
-                // Guardar datos de login
+            // Verificar si el login fue exitoso (nuevo formato JWT)
+            if (result.access_token) {
+                // Guardar token JWT y datos de usuario
                 this.state.loginData = { 
-                    nombre: result.nombre, 
-                    correo: result.correo, 
-                    contraseña: loginData.contraseña 
+                    nombre: result.username, 
+                    correo: result.email, 
+                    token: result.access_token,
+                    tokenType: result.token_type,
+                    expiresIn: result.expires_in
                 };
                 this.state.isLoggedIn = true;
-                this.state.userName = result.nombre;
+                this.state.userName = result.username;
                 
                 // Guardar en localStorage
                 localStorage.setItem('user_login', JSON.stringify(this.state.loginData));
+                localStorage.setItem('jwt_token', result.access_token);
                 
                 // Mostrar mensaje de éxito
                 this.elements.mensajeExito.textContent = '¡Login exitoso! Redirigiendo al chatbot...';
@@ -339,6 +355,128 @@ class ChatbotApp {
             this.elements.mensajeExito.style.color = 'red';
         }
     }
+
+    /**
+     * Configura los event listeners para CAPTCHA
+     */
+    setup2FAEventListeners() {
+        // Event listeners para CAPTCHA
+        const btnGenerarCaptcha = document.getElementById('btn-generar-captcha');
+        if (btnGenerarCaptcha) {
+            btnGenerarCaptcha.addEventListener('click', this.generateCaptcha.bind(this));
+        }
+        
+        const btnVerificarCaptcha = document.getElementById('btn-verificar-captcha');
+        if (btnVerificarCaptcha) {
+            btnVerificarCaptcha.addEventListener('click', this.verifyCaptcha.bind(this));
+        }
+        
+        // Generar CAPTCHA inicial al cargar la página
+        this.generateCaptcha();
+        
+    }
+
+
+    /**
+     * Muestra mensaje en la interfaz
+     */
+    showMessage(message, type = 'info') {
+        const mensajeElement = document.getElementById('mensaje-error') || document.getElementById('mensaje-exito');
+        if (mensajeElement) {
+            mensajeElement.textContent = message;
+            mensajeElement.style.color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'blue';
+        }
+    }
+
+
+
+    /**
+     * Genera un CAPTCHA matemático
+     */
+    generateCaptcha() {
+        const captchaChallenge = document.getElementById('captcha-challenge');
+        const captchaAnswer = document.getElementById('captcha-answer');
+        
+        if (!captchaChallenge || !captchaAnswer) return;
+        
+        // Generar operación matemática simple
+        const num1 = Math.floor(Math.random() * 10) + 1;
+        const num2 = Math.floor(Math.random() * 10) + 1;
+        const operaciones = ['+', '-', '*'];
+        const operacion = operaciones[Math.floor(Math.random() * operaciones.length)];
+        
+        let resultado;
+        let pregunta;
+        
+        switch (operacion) {
+            case '+':
+                resultado = num1 + num2;
+                pregunta = `${num1} + ${num2} = ?`;
+                break;
+            case '-':
+                resultado = num1 - num2;
+                pregunta = `${num1} - ${num2} = ?`;
+                break;
+            case '*':
+                resultado = num1 * num2;
+                pregunta = `${num1} × ${num2} = ?`;
+                break;
+        }
+        
+        captchaChallenge.textContent = pregunta;
+        captchaAnswer.value = '';
+        captchaAnswer.setAttribute('data-expected', resultado);
+        
+        // Agregar efectos visuales
+        captchaChallenge.style.animation = 'none';
+        setTimeout(() => {
+            captchaChallenge.style.animation = 'shake 0.5s ease-in-out';
+        }, 10);
+    }
+
+    /**
+     * Verifica el CAPTCHA
+     */
+    verifyCaptcha() {
+        const captchaAnswer = document.getElementById('captcha-answer');
+        const expectedAnswer = captchaAnswer?.getAttribute('data-expected');
+        const userAnswer = captchaAnswer?.value.trim();
+        
+        if (!userAnswer) {
+            this.showMessage('Por favor ingresa la respuesta del CAPTCHA', 'error');
+            return;
+        }
+        
+        if (parseInt(userAnswer) === parseInt(expectedAnswer)) {
+            this.showMessage('✅ CAPTCHA verificado correctamente!', 'success');
+            this.captchaVerified = true;
+            
+            // Ocultar sección CAPTCHA y mostrar botón de login
+            const captchaSection = document.getElementById('captcha-section');
+            if (captchaSection) {
+                captchaSection.style.display = 'none';
+            }
+            
+            // Habilitar login
+            this.enableLogin();
+        } else {
+            this.showMessage('❌ Respuesta incorrecta. Intenta nuevamente.', 'error');
+            this.generateCaptcha(); // Generar nuevo CAPTCHA
+        }
+    }
+
+    /**
+     * Habilita el botón de login después de verificar CAPTCHA
+     */
+    enableLogin() {
+        const btnLogin = document.getElementById('btn-login');
+        if (btnLogin) {
+            btnLogin.style.backgroundColor = '#007bff';
+            btnLogin.disabled = false;
+            btnLogin.textContent = '🔐 Iniciar Sesión (Verificado)';
+        }
+    }
+
 
     /**
      * Muestra la sección de login
@@ -404,8 +542,9 @@ class ChatbotApp {
     handleLogout() {
         console.log('🚪 Cerrando sesión...');
         
-        // Limpiar datos de login
+        // Limpiar datos de login y token JWT
         localStorage.removeItem('user_login');
+        localStorage.removeItem('jwt_token');
         localStorage.removeItem('chatbot_user');
         localStorage.removeItem('chatbot_date');
         
@@ -759,7 +898,7 @@ class ChatbotApp {
             const url = `${this.config.backendUrl}/api/menu/procesar/${optionId}?sessionId=${this.state.menuSessionId}`;
             const res = await fetch(url, { 
                 method: 'POST', 
-                headers: { 'Content-Type': 'application/json' } 
+                headers: this.getAuthHeaders() 
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const resultado = await res.text();
@@ -868,9 +1007,7 @@ class ChatbotApp {
             
             const response = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                headers: this.getAuthHeaders()
             });
 
             if (response.ok) {
@@ -1037,7 +1174,8 @@ class ChatbotApp {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'text/plain'
+                'Content-Type': 'text/plain',
+                'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
             },
             body: ideaProyecto
         });
@@ -1072,7 +1210,8 @@ class ChatbotApp {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'text/plain'
+                'Content-Type': 'text/plain',
+                'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
             },
             body: nuevaTarea
         });
@@ -1106,7 +1245,8 @@ class ChatbotApp {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'text/plain'
+                'Content-Type': 'text/plain',
+                'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
             },
             body: numeroTarea
         });
@@ -1187,7 +1327,10 @@ class ChatbotApp {
         const url = `${this.config.backendUrl}/api/menu/procesar/1/datos?sessionId=${this.state.menuSessionId}`;
         const res = await fetch(url, { 
             method: 'POST', 
-            headers: { 'Content-Type': 'text/plain' }, 
+            headers: { 
+                'Content-Type': 'text/plain',
+                'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
+            }, 
             body: idea 
         });
         if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -1206,7 +1349,10 @@ class ChatbotApp {
         const url = `${this.config.backendUrl}/api/menu/procesar/2/datos?sessionId=${this.state.menuSessionId}`;
         const res = await fetch(url, { 
             method: 'POST', 
-            headers: { 'Content-Type': 'text/plain' }, 
+            headers: { 
+                'Content-Type': 'text/plain',
+                'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
+            }, 
             body: tarea 
         });
         if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -1225,7 +1371,10 @@ class ChatbotApp {
         const url = `${this.config.backendUrl}/api/menu/procesar/3/datos?sessionId=${this.state.menuSessionId}`;
         const res = await fetch(url, { 
             method: 'POST', 
-            headers: { 'Content-Type': 'text/plain' }, 
+            headers: { 
+                'Content-Type': 'text/plain',
+                'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
+            }, 
             body: num 
         });
         if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -1606,9 +1755,7 @@ class ChatbotApp {
             
             const response = await fetch(`${this.config.backendUrl}/api/menu/sesion/${this.state.menuSessionId}/estado`, {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                headers: this.getAuthHeaders()
             });
 
             if (response.ok) {
@@ -1962,5 +2109,6 @@ let chatbotApp;
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🎯 DOM cargado - Inicializando aplicación con backend...');
     chatbotApp = new ChatbotApp();
+    window.chatbotApp = chatbotApp; // Hacer la instancia global
     chatbotApp.init();
 });

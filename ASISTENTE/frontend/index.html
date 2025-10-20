@@ -25,19 +25,41 @@
     
             <form id="form-login">
                 <div class="imput">
-                    <label for="nombre">Nombre del Usuario</label>
-                    <input type="text" id="nombre" name="nombre" placeholder="Ingrese su nombre" required>
-    
-                    <label for="correo">Correo:</label>
-                    <input type="email" id="correo" name="correo" placeholder="Ingrese su correo" required>
-    
-                    <label for="contraseña">Contraseña:</label>
-                    <input type="password" id="contraseña" name="contraseña" placeholder="Ingrese su contraseña" required>
-    
-    
-                    <button type="submit">Iniciar Sesión</button>
+                    <div class="input-row">
+                        <label for="correo">Correo:</label>
+                        <input type="email" id="correo" name="correo" placeholder="Ingrese su correo" required>
+                    </div>
+
+                    <div class="input-row">
+                        <label for="contraseña">Contraseña:</label>
+                        <input type="password" id="contraseña" name="contraseña" placeholder="Ingrese su contraseña" required>
+                    </div>
+
+                    <!-- Sección CAPTCHA compacta -->
+                    <div id="captcha-section" class="captcha-section-compact">
+                        <h4>🤖 Verificación Anti-Bot</h4>
+                        
+                        <div id="captcha-container" class="captcha-container-compact">
+                            <div id="captcha-challenge" class="captcha-challenge-compact">
+                                <!-- Se generará dinámicamente -->
+                            </div>
+                            <input type="text" id="captcha-answer" placeholder="Resultado" class="captcha-answer-compact">
+                        </div>
+                        
+                        <div class="captcha-buttons-compact">
+                            <button type="button" id="btn-generar-captcha" class="btn-captcha-compact">
+                                🔄
+                            </button>
+                            <button type="button" id="btn-verificar-captcha" class="btn-captcha-compact">
+                                ✅
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btn-login">Iniciar Sesión</button>
                     <button type="button" id="btn-registrarse" class="btn-registrarse">Registrarse</button>
                     <div id="mensaje-exito" style="margin-top: 10px; font-weight: bold; color: green;"></div>
+                    <div id="mensaje-error" style="margin-top: 10px; font-weight: bold; color: red;"></div>
                 </div>
              </form>
          </div>
