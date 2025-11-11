@@ -11,6 +11,9 @@ class ChatbotApp {
             debugMode: this.isLocalhost()
         };
 
+        // Token JWT para autenticación
+        this.jwtToken = localStorage.getItem('jwt_token');
+
         // Referencias a elementos del DOM
         this.elements = {
             // Elementos del login
@@ -48,41 +51,6 @@ class ChatbotApp {
             chatMessages: document.getElementById('chatMessages'),
             chatForm: document.getElementById('chatForm'),
             chatInput: document.getElementById('chatInput'),
-            logoutBtn: document.getElementById('logoutBtn'),
-            
-            // Elementos para gestión de proyectos
-            projectModal: document.getElementById('projectModal'),
-            projectForm: document.getElementById('projectForm'),
-            projectName: document.getElementById('projectName'),
-            closeProjectModal: document.getElementById('closeProjectModal'),
-            cancelProject: document.getElementById('cancelProject'),
-            
-            // Elementos para gestión de tareas
-            taskModal: document.getElementById('taskModal'),
-            taskForm: document.getElementById('taskForm'),
-            taskName: document.getElementById('taskName'),
-            taskDescription: document.getElementById('taskDescription'),
-            closeTaskModal: document.getElementById('closeTaskModal'),
-            cancelTask: document.getElementById('cancelTask'),
-            
-            // Elementos para consultar tareas
-            tasksModal: document.getElementById('tasksModal'),
-            currentProjectName: document.getElementById('currentProjectName'),
-            statusFilter: document.getElementById('statusFilter'),
-            tasksList: document.getElementById('tasksList'),
-            closeTasksModal: document.getElementById('closeTasksModal'),
-            
-            // Elementos para botones fijos de tareas
-            fixedTaskButtons: document.getElementById('fixedTaskButtons'),
-            fixedCreateTaskBtn: document.getElementById('fixedCreateTaskBtn'),
-            fixedViewTasksBtn: document.getElementById('fixedViewTasksBtn'),
-            
-            // Elementos para configuración de API
-            configModal: document.getElementById('configModal'),
-            configForm: document.getElementById('configForm'),
-            apiKey: document.getElementById('apiKey'),
-            closeConfigModal: document.getElementById('closeConfigModal'),
-            cancelConfig: document.getElementById('cancelConfig'),
             sendBtn: document.getElementById('sendBtn'),
             changeUserBtn: document.getElementById('changeUserBtn'),
             minimizeBtn: document.getElementById('minimizeBtn'),
@@ -110,19 +78,12 @@ class ChatbotApp {
         // Estados de flujo de menú
         menuSessionId: null,
         menuSessionActive: true,
-        
-        // Estado de proyectos y tareas
-        currentProject: null,
-        tasks: [],
-        projectCreated: false,
-        
-        // Estado de configuración
-        isConfigured: false,
         waitingForProjectIdea: false,
         waitingForNewTask: false,
         waitingForTaskNumber: false,
-        chatbotInitialized: false,
-        menuShown: false
+        // Control de scroll para evitar parpadeos
+        scrollTimeout: null,
+        isScrolling: false
         };
 
         // Inicialización
@@ -142,7 +103,6 @@ class ChatbotApp {
         
         this.setupEventListeners();
         this.checkLoginStatus();
-        this.checkConfiguration();
         
         if (this.config.debugMode) {
             this.setupDebugMode();
@@ -166,1168 +126,19 @@ class ChatbotApp {
     }
 
     /**
-     * MÉTODOS PARA GESTIÓN DE PROYECTOS Y TAREAS
+     * Obtiene headers con autenticación JWT
      */
-
-    /**
-     * Muestra el modal para crear proyecto
-     */
-    showProjectModal() {
-        this.elements.projectModal.style.display = 'flex';
-        this.elements.projectName.focus();
-    }
-
-    /**
-     * Oculta el modal de proyecto
-     */
-    hideProjectModal() {
-        this.elements.projectModal.style.display = 'none';
-        this.elements.projectForm.reset();
-    }
-
-    /**
-     * Crea un nuevo proyecto
-     */
-    createProject(projectName) {
-        this.state.currentProject = {
-            id: Date.now(),
-            name: projectName,
-            createdAt: new Date()
-        };
-        this.state.projectCreated = true;
-        this.state.tasks = [];
-        
-        // Mostrar mensaje de confirmación
-        this.addBotMessage(`✅ Proyecto "${projectName}" creado exitosamente.`);
-        
-        // Generar tareas para el proyecto y mostrar botones fijos
-        this.generateTasksForProjectAndShowButtons(projectName);
-        
-        // Cambiar el menú para mostrar solo "Crear Tareas" y "Consultar"
-        this.showProjectMenu();
-    }
-
-    /**
-     * Genera tareas para el proyecto y muestra los botones fijos
-     */
-    generateTasksForProjectAndShowButtons(projectName) {
-        console.log('📋 Generando tareas para el proyecto:', projectName);
-        
-        // Generar tareas específicas basadas en el nombre del proyecto
-        const projectTasks = this.generateTasksForProject(projectName);
-        this.state.tasks = projectTasks;
-        
-        console.log('📋 Tareas generadas:', this.state.tasks);
-        
-        // Mostrar mensaje informativo sobre las tareas generadas
-        this.addBotMessage(`📋 Se han generado ${projectTasks.length} tareas para tu proyecto "${projectName}".`);
-        this.addBotMessage('💡 Ahora puedes gestionar las tareas usando los botones fijos en la parte inferior.');
-        
-        // Mostrar los botones fijos
-        console.log('🔧 Intentando mostrar botones fijos...');
-        console.log('🔧 Elemento fixedTaskButtons:', this.elements.fixedTaskButtons);
-        console.log('🔧 Estado del elemento:', this.elements.fixedTaskButtons ? 'ENCONTRADO' : 'NO ENCONTRADO');
-        
-        if (this.elements.fixedTaskButtons) {
-            console.log('🔧 Elemento existe, llamando showFixedTaskButtons...');
-            this.showFixedTaskButtons();
-        } else {
-            console.error('❌ Elemento fixedTaskButtons no encontrado en this.elements');
-            
-            // Intentar buscar el elemento directamente en el DOM
-            const directElement = document.getElementById('fixedTaskButtons');
-            console.log('🔧 Búsqueda directa en DOM:', directElement);
-            
-            if (directElement) {
-                console.log('🔧 Elemento encontrado directamente, asignando...');
-                this.elements.fixedTaskButtons = directElement;
-                this.showFixedTaskButtons();
-            } else {
-                console.error('❌ Elemento no encontrado ni en this.elements ni en DOM');
-                
-                // Crear los botones dinámicamente como último recurso
-                console.log('🔧 Creando botones dinámicamente...');
-                this.createFixedButtonsDynamically();
-            }
-        }
-        
-        // Mostrar el menú principal filtrado (sin "Crear Proyecto")
-        setTimeout(() => {
-            this.showFilteredMainMenu();
-        }, 1000);
-    }
-
-    /**
-     * Muestra el menú principal filtrado (sin "Crear Proyecto")
-     */
-    showFilteredMainMenu() {
-        console.log('📋 Mostrando menú principal filtrado...');
-        
-        // Crear el menú principal filtrado
-        const menuHTML = `
-            <div class="menu-container">
-                <div class="menu-header">
-                    <h4>🎯 Menú Principal - Proyecto Activo</h4>
-                    <p class="menu-subtitle">¿Qué te gustaría hacer?</p>
-                </div>
-                <div class="menu-options">
-                    <div class="menu-option-card" data-option-id="2" data-option-action="add-task">
-                        <div class="menu-option-icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        <div class="menu-option-content">
-                            <h5 class="menu-option-title">Crear Tareas</h5>
-                            <p class="menu-option-description">Genera tareas automáticamente para tu proyecto</p>
-                        </div>
-                    </div>
-                    <div class="menu-option-card" data-option-id="3" data-option-action="view-tasks">
-                        <div class="menu-option-icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M21 21L16.514 16.506L21 21ZM19 10.5C19 15.194 15.194 19 10.5 19C5.806 19 2 15.194 2 10.5C2 5.806 5.806 2 10.5 2C15.194 2 19 5.806 19 10.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        <div class="menu-option-content">
-                            <h5 class="menu-option-title">Consultar Tareas</h5>
-                            <p class="menu-option-description">Revisa el estado de tus proyectos existentes</p>
-                        </div>
-                    </div>
-                    <div class="menu-option-card" data-option-id="4" data-option-action="manage-tasks">
-                        <div class="menu-option-icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        <div class="menu-option-content">
-                            <h5 class="menu-option-title">Gestionar Tareas</h5>
-                            <p class="menu-option-description">Gestiona las tareas de tu proyecto</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Añadir el menú al chat
-        this.addBotMessage(menuHTML);
-        
-        // Configurar event listeners para las opciones del menú
-        setTimeout(() => {
-            this.setupMenuEventListeners();
-        }, 100);
-    }
-
-    /**
-     * Configura los event listeners para las opciones del menú
-     */
-    setupMenuEventListeners() {
-        console.log('🔧 Configurando event listeners del menú...');
-        
-        // Buscar todas las opciones del menú
-        const menuCards = document.querySelectorAll('.menu-option-card');
-        console.log('🔧 Opciones del menú encontradas:', menuCards.length);
-        
-        menuCards.forEach(card => {
-            card.addEventListener('click', (e) => {
-                e.preventDefault();
-                const optionId = parseInt(card.dataset.optionId);
-                const action = card.dataset.optionAction;
-                const title = card.querySelector('.menu-option-title').textContent;
-                
-                console.log('🔧 Opción del menú clickeada:', { optionId, action, title });
-                
-                // Procesar la opción seleccionada
-                this.handleMenuOptionClick(optionId, action, title);
-            });
-        });
-    }
-
-    /**
-     * Muestra el menú específico del proyecto (solo Crear Tareas y Consultar)
-     */
-    showProjectMenu() {
-        const menuHTML = `
-            <div class="menu-container">
-                <h3 class="menu-title">Menú del Proyecto - ${this.state.currentProject.name}</h3>
-                <div class="menu-options">
-                    <div class="menu-option-card" data-option-id="2" data-option-action="add-task">
-                        <div class="menu-option-icon">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                            </svg>
-                        </div>
-                        <div class="menu-option-content">
-                            <h4 class="menu-option-title">Crear Tarea</h4>
-                            <p class="menu-option-description">Agregar nueva tarea al proyecto</p>
-                        </div>
-                    </div>
-                    <div class="menu-option-card" data-option-id="3" data-option-action="view-tasks">
-                        <div class="menu-option-icon">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7H3v2h16V4z"/>
-                            </svg>
-                        </div>
-                        <div class="menu-option-content">
-                            <h4 class="menu-option-title">Consultar Tareas</h4>
-                            <p class="menu-option-description">Ver tablero de tareas del proyecto</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        this.addBotMessage(menuHTML, true);
-    }
-
-    /**
-     * Muestra el modal para agregar tarea
-     */
-    showTaskModal() {
-        // Verificar si hay una sesión activa (proyecto creado)
-        if (!this.state.menuSessionId) {
-            this.addBotMessage('❌ Primero debes crear un proyecto.');
-            return;
-        }
-        
-        console.log('➕ Mostrando modal para crear tarea...');
-        console.log('➕ Elemento taskModal:', this.elements.taskModal);
-        console.log('➕ Elemento taskName:', this.elements.taskName);
-        
-        if (this.elements.taskModal) {
-            this.elements.taskModal.style.display = 'flex';
-            console.log('✅ Modal de tarea mostrado');
-        } else {
-            console.error('❌ No se encontró el elemento taskModal');
-        }
-        
-        if (this.elements.taskName) {
-            this.elements.taskName.focus();
-            console.log('✅ Campo de nombre enfocado');
-        } else {
-            console.error('❌ No se encontró el elemento taskName');
-        }
-    }
-
-    /**
-     * Oculta el modal de tarea
-     */
-    hideTaskModal() {
-        this.elements.taskModal.style.display = 'none';
-        this.elements.taskForm.reset();
-    }
-
-    /**
-     * Agrega una nueva tarea
-     */
-    addTask(taskName, taskDescription = '') {
-        const newTask = {
-            id: Date.now(),
-            name: taskName,
-            description: taskDescription,
-            status: 'new',
-            createdAt: new Date()
+    getAuthHeaders() {
+        const token = localStorage.getItem('jwt_token');
+        const headers = {
+            'Content-Type': 'application/json'
         };
         
-        this.state.tasks.push(newTask);
-        
-        this.addBotMessage(`✅ Tarea "${taskName}" agregada exitosamente.`);
-        this.addBotMessage(`Total de tareas: ${this.state.tasks.length}`);
-    }
-
-    /**
-     * Muestra el modal para consultar tareas
-     */
-    showTasksModal() {
-        if (!this.state.currentProject) {
-            this.addBotMessage('❌ No hay proyecto activo.');
-            return;
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
         }
         
-        this.elements.currentProjectName.textContent = this.state.currentProject.name;
-        this.elements.tasksModal.style.display = 'flex';
-        this.renderTasksList();
-    }
-
-    /**
-     * Muestra el tablero de tareas en un popup
-     */
-    showTasksBoard() {
-        console.log('📋 Estado actual de tareas:', this.state.tasks);
-        console.log('📋 Número de tareas:', this.state.tasks.length);
-        console.log('📋 Proyecto actual:', this.state.currentProject);
-        console.log('📋 Sesión activa:', this.state.menuSessionId);
-
-        if (this.state.tasks.length === 0) {
-            this.addBotMessage('📋 No hay tareas disponibles para mostrar en el tablero.');
-            this.addBotMessage('💡 Sincronizando tareas desde el backend...');
-            
-            // Intentar sincronizar tareas desde el backend
-            this.syncTasksFromBackend();
-            
-            // Mostrar el tablero después de sincronizar
-            setTimeout(() => {
-                this.showTasksBoard();
-            }, 1000);
-            return;
-        }
-
-        // Mostrar popup con el tablero de tareas
-        this.showTasksBoardPopup();
-    }
-
-    /**
-     * Muestra el popup del tablero de tareas
-     */
-    showTasksBoardPopup() {
-        // Usar el nombre del proyecto de la sesión si no hay proyecto local
-        const projectName = this.state.currentProject ? this.state.currentProject.name : 'Proyecto Actual';
-        
-        const boardHTML = `
-            <div class="tasks-board-container">
-                <h3 class="board-title">📋 Tablero de Tareas - ${projectName}</h3>
-                <div class="tasks-board">
-                    <div class="board-column" data-status="new">
-                        <div class="column-header">
-                            <h4>🆕 Nuevas</h4>
-                            <span class="task-count">${this.getTasksByStatus('new').length}</span>
-                        </div>
-                        <div class="tasks-column" id="new-tasks">
-                            ${this.renderTasksForColumn('new')}
-                        </div>
-                    </div>
-                    <div class="board-column" data-status="active">
-                        <div class="column-header">
-                            <h4>🔄 Activas</h4>
-                            <span class="task-count">${this.getTasksByStatus('active').length}</span>
-                        </div>
-                        <div class="tasks-column" id="active-tasks">
-                            ${this.renderTasksForColumn('active')}
-                        </div>
-                    </div>
-                    <div class="board-column" data-status="closed">
-                        <div class="column-header">
-                            <h4>✅ Cerradas</h4>
-                            <span class="task-count">${this.getTasksByStatus('closed').length}</span>
-                        </div>
-                        <div class="tasks-column" id="closed-tasks">
-                            ${this.renderTasksForColumn('closed')}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // Crear el popup del tablero
-        const popup = document.createElement('div');
-        popup.className = 'popup-overlay';
-        popup.innerHTML = `
-            <div class="popup-content tasks-board-popup">
-                <div class="popup-header">
-                    <h3>📋 Tablero de Tareas</h3>
-                    <button class="popup-close" onclick="this.closest('.popup-overlay').remove()">×</button>
-                </div>
-                <div class="popup-body">
-                    ${boardHTML}
-                </div>
-            </div>
-        `;
-
-        // Añadir el popup al body
-        document.body.appendChild(popup);
-
-        // Añadir estilos para el popup
-        const style = document.createElement('style');
-        style.textContent = `
-            .tasks-board-popup {
-                max-width: 90vw;
-                max-height: 90vh;
-                overflow-y: auto;
-            }
-            .tasks-board-popup .popup-body {
-                padding: 20px;
-            }
-        `;
-        document.head.appendChild(style);
-
-        console.log('📋 Popup del tablero mostrado');
-    }
-
-    /**
-     * Oculta el modal de tareas
-     */
-    hideTasksModal() {
-        this.elements.tasksModal.style.display = 'none';
-    }
-
-    /**
-     * Obtiene las tareas por estado
-     */
-    getTasksByStatus(status) {
-        return this.state.tasks.filter(task => task.status === status);
-    }
-
-    /**
-     * Renderiza las tareas para una columna específica
-     */
-    renderTasksForColumn(status) {
-        const tasks = this.getTasksByStatus(status);
-        if (tasks.length === 0) {
-            return '<div class="empty-column">No hay tareas</div>';
-        }
-        
-        return tasks.map(task => `
-            <div class="task-card" data-task-id="${task.id}" draggable="true">
-                <div class="task-header">
-                    <h5 class="task-title">${task.name}</h5>
-                    <div class="task-status-badge status-${task.status}">${task.status}</div>
-                </div>
-                <div class="task-content">
-                    <p class="task-description">${task.description || 'Sin descripción'}</p>
-                    <div class="task-actions">
-                        <select class="status-selector" data-task-id="${task.id}">
-                            <option value="new" ${task.status === 'new' ? 'selected' : ''}>Nueva</option>
-                            <option value="active" ${task.status === 'active' ? 'selected' : ''}>Activa</option>
-                            <option value="closed" ${task.status === 'closed' ? 'selected' : ''}>Cerrada</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    /**
-     * Maneja el cambio de estado de una tarea
-     */
-    handleTaskStatusChange(event) {
-        if (event.target.classList.contains('status-selector')) {
-            const taskId = parseInt(event.target.dataset.taskId);
-            const newStatus = event.target.value;
-            
-            // Actualizar el estado de la tarea
-            const task = this.state.tasks.find(t => t.id === taskId);
-            if (task) {
-                const oldStatus = task.status;
-                task.status = newStatus;
-                
-                console.log(`📝 Tarea "${task.name}" cambiada de ${oldStatus} a ${newStatus}`);
-                
-                // Mostrar mensaje de confirmación
-                this.addBotMessage(`✅ Tarea "${task.name}" movida a estado: ${newStatus}`);
-                
-                // Actualizar el tablero si está visible
-                this.refreshTasksBoard();
-            }
-        }
-    }
-
-    /**
-     * Refresca el tablero de tareas
-     */
-    refreshTasksBoard() {
-        // Buscar el contenedor del tablero y actualizarlo
-        const boardContainer = document.querySelector('.tasks-board-container');
-        if (boardContainer) {
-            // Actualizar contadores
-            const newCount = this.getTasksByStatus('new').length;
-            const activeCount = this.getTasksByStatus('active').length;
-            const closedCount = this.getTasksByStatus('closed').length;
-            
-            // Actualizar contadores en los headers
-            const newColumn = boardContainer.querySelector('[data-status="new"] .task-count');
-            const activeColumn = boardContainer.querySelector('[data-status="active"] .task-count');
-            const closedColumn = boardContainer.querySelector('[data-status="closed"] .task-count');
-            
-            if (newColumn) newColumn.textContent = newCount;
-            if (activeColumn) activeColumn.textContent = activeCount;
-            if (closedColumn) closedColumn.textContent = closedCount;
-            
-            // Actualizar contenido de las columnas
-            const newTasksColumn = boardContainer.querySelector('#new-tasks');
-            const activeTasksColumn = boardContainer.querySelector('#active-tasks');
-            const closedTasksColumn = boardContainer.querySelector('#closed-tasks');
-            
-            if (newTasksColumn) newTasksColumn.innerHTML = this.renderTasksForColumn('new');
-            if (activeTasksColumn) activeTasksColumn.innerHTML = this.renderTasksForColumn('active');
-            if (closedTasksColumn) closedTasksColumn.innerHTML = this.renderTasksForColumn('closed');
-        }
-    }
-
-    /**
-     * Sincroniza las tareas del backend con el estado local
-     */
-    async syncTasksFromBackend() {
-        try {
-            console.log('🔄 Sincronizando tareas desde el backend...');
-            
-            // Por ahora, crear tareas de ejemplo basadas en el proyecto
-            // En el futuro se puede implementar un endpoint real para obtener las tareas
-            console.log('📋 Creando tareas de ejemplo para el proyecto...');
-            
-            if (this.state.currentProject) {
-                const projectTasks = this.generateTasksForProject(this.state.currentProject.name);
-                this.state.tasks = projectTasks;
-                console.log('📋 Tareas de ejemplo creadas:', this.state.tasks);
-                console.log('📋 Total de tareas después de sincronizar:', this.state.tasks.length);
-            } else {
-                // Si no hay proyecto local, crear tareas genéricas
-                const genericTasks = this.generateGenericTasks();
-                this.state.tasks = genericTasks;
-                console.log('📋 Tareas genéricas creadas:', this.state.tasks);
-                console.log('📋 Total de tareas después de sincronizar:', this.state.tasks.length);
-            }
-            
-            // Los botones fijos se mostrarán cuando el usuario cree el proyecto
-        } catch (error) {
-            console.error('❌ Error sincronizando tareas:', error);
-            
-            // En caso de error, crear tareas de ejemplo
-            const genericTasks = this.generateGenericTasks();
-            this.state.tasks = genericTasks;
-            console.log('📋 Tareas de ejemplo creadas por error:', this.state.tasks);
-        }
-    }
-
-    /**
-     * Genera tareas genéricas cuando no hay proyecto específico
-     */
-    generateGenericTasks() {
-        const genericTasks = [
-            {
-                id: Date.now() + 1,
-                name: 'Análisis de requisitos',
-                description: 'Definir y documentar los requisitos del proyecto',
-                status: 'new',
-                createdAt: new Date()
-            },
-            {
-                id: Date.now() + 2,
-                name: 'Diseño de arquitectura',
-                description: 'Crear la arquitectura técnica del sistema',
-                status: 'new',
-                createdAt: new Date()
-            },
-            {
-                id: Date.now() + 3,
-                name: 'Implementación del backend',
-                description: 'Desarrollar la lógica del servidor',
-                status: 'active',
-                createdAt: new Date()
-            },
-            {
-                id: Date.now() + 4,
-                name: 'Desarrollo del frontend',
-                description: 'Crear la interfaz de usuario',
-                status: 'active',
-                createdAt: new Date()
-            },
-            {
-                id: Date.now() + 5,
-                name: 'Configuración inicial',
-                description: 'Configurar el entorno de desarrollo',
-                status: 'closed',
-                createdAt: new Date()
-            }
-        ];
-        
-        return genericTasks;
-    }
-
-    /**
-     * Genera tareas basadas en el nombre del proyecto
-     */
-    generateTasksForProject(projectName) {
-        // Generar tareas específicas basadas en el tipo de proyecto
-        let specificTasks = [];
-        
-        if (projectName.toLowerCase().includes('automatizacion') || projectName.toLowerCase().includes('automatización')) {
-            specificTasks = [
-                {
-                    id: Date.now() + 1,
-                    name: 'Análisis de procesos actuales',
-                    description: `Identificar y documentar los procesos a automatizar en ${projectName}`,
-                    status: 'new',
-                    createdAt: new Date()
-                },
-                {
-                    id: Date.now() + 2,
-                    name: 'Diseño de flujo de automatización',
-                    description: `Crear el flujo de trabajo automatizado para ${projectName}`,
-                    status: 'new',
-                    createdAt: new Date()
-                },
-                {
-                    id: Date.now() + 3,
-                    name: 'Implementación de scripts',
-                    description: `Desarrollar los scripts de automatización para ${projectName}`,
-                    status: 'active',
-                    createdAt: new Date()
-                },
-                {
-                    id: Date.now() + 4,
-                    name: 'Configuración de herramientas',
-                    description: `Configurar las herramientas de automatización para ${projectName}`,
-                    status: 'active',
-                    createdAt: new Date()
-                },
-                {
-                    id: Date.now() + 5,
-                    name: 'Pruebas de automatización',
-                    description: `Validar el funcionamiento de la automatización en ${projectName}`,
-                    status: 'closed',
-                    createdAt: new Date()
-                }
-            ];
-        } else if (projectName.toLowerCase().includes('api') || projectName.toLowerCase().includes('apis')) {
-            specificTasks = [
-                {
-                    id: Date.now() + 1,
-                    name: 'Diseño de endpoints',
-                    description: `Definir los endpoints de la API para ${projectName}`,
-                    status: 'new',
-                    createdAt: new Date()
-                },
-                {
-                    id: Date.now() + 2,
-                    name: 'Implementación de controladores',
-                    description: `Desarrollar los controladores de la API para ${projectName}`,
-                    status: 'new',
-                    createdAt: new Date()
-                },
-                {
-                    id: Date.now() + 3,
-                    name: 'Configuración de base de datos',
-                    description: `Configurar la base de datos para ${projectName}`,
-                    status: 'active',
-                    createdAt: new Date()
-                },
-                {
-                    id: Date.now() + 4,
-                    name: 'Documentación de API',
-                    description: `Crear la documentación de la API para ${projectName}`,
-                    status: 'active',
-                    createdAt: new Date()
-                },
-                {
-                    id: Date.now() + 5,
-                    name: 'Pruebas de integración',
-                    description: `Realizar pruebas de integración para ${projectName}`,
-                    status: 'closed',
-                    createdAt: new Date()
-                }
-            ];
-        } else {
-            // Tareas genéricas para otros tipos de proyectos
-            specificTasks = [
-                {
-                    id: Date.now() + 1,
-                    name: 'Análisis de requisitos',
-                    description: `Definir y documentar los requisitos para ${projectName}`,
-                    status: 'new',
-                    createdAt: new Date()
-                },
-                {
-                    id: Date.now() + 2,
-                    name: 'Diseño de arquitectura',
-                    description: `Crear la arquitectura técnica para ${projectName}`,
-                    status: 'new',
-                    createdAt: new Date()
-                },
-                {
-                    id: Date.now() + 3,
-                    name: 'Implementación del backend',
-                    description: `Desarrollar la lógica del servidor para ${projectName}`,
-                    status: 'active',
-                    createdAt: new Date()
-                },
-                {
-                    id: Date.now() + 4,
-                    name: 'Desarrollo del frontend',
-                    description: `Crear la interfaz de usuario para ${projectName}`,
-                    status: 'active',
-                    createdAt: new Date()
-                },
-                {
-                    id: Date.now() + 5,
-                    name: 'Configuración inicial',
-                    description: `Configurar el entorno de desarrollo para ${projectName}`,
-                    status: 'closed',
-                    createdAt: new Date()
-                }
-            ];
-        }
-        
-        return specificTasks;
-    }
-
-    /**
-     * Crea tareas de ejemplo para demostrar el tablero
-     */
-    createSampleTasks() {
-        const sampleTasks = [
-            {
-                id: Date.now() + 1,
-                name: 'Análisis de requisitos',
-                description: 'Definir y documentar los requisitos del proyecto',
-                status: 'new',
-                createdAt: new Date()
-            },
-            {
-                id: Date.now() + 2,
-                name: 'Diseño de arquitectura',
-                description: 'Crear la arquitectura técnica del sistema',
-                status: 'new',
-                createdAt: new Date()
-            },
-            {
-                id: Date.now() + 3,
-                name: 'Implementación del backend',
-                description: 'Desarrollar la lógica del servidor',
-                status: 'active',
-                createdAt: new Date()
-            },
-            {
-                id: Date.now() + 4,
-                name: 'Desarrollo del frontend',
-                description: 'Crear la interfaz de usuario',
-                status: 'active',
-                createdAt: new Date()
-            },
-            {
-                id: Date.now() + 5,
-                name: 'Configuración inicial',
-                description: 'Configurar el entorno de desarrollo',
-                status: 'closed',
-                createdAt: new Date()
-            }
-        ];
-
-        this.state.tasks = sampleTasks;
-        console.log('📋 Tareas de ejemplo creadas:', this.state.tasks);
-        console.log('📋 Total de tareas:', this.state.tasks.length);
-        
-        // Verificar que las tareas se guardaron correctamente
-        if (this.state.tasks.length > 0) {
-            console.log('✅ Tareas guardadas exitosamente en el estado');
-        } else {
-            console.error('❌ Error: No se pudieron guardar las tareas');
-        }
-    }
-
-    /**
-     * Renderiza la lista de tareas
-     */
-    renderTasksList() {
-        const filter = this.elements.statusFilter.value;
-        let filteredTasks = this.state.tasks;
-        
-        if (filter !== 'all') {
-            filteredTasks = this.state.tasks.filter(task => task.status === filter);
-        }
-        
-        this.elements.tasksList.innerHTML = '';
-        
-        if (filteredTasks.length === 0) {
-            this.elements.tasksList.innerHTML = '<p>No hay tareas disponibles.</p>';
-            return;
-        }
-        
-        filteredTasks.forEach(task => {
-            const taskElement = this.createTaskElement(task);
-            this.elements.tasksList.appendChild(taskElement);
-        });
-    }
-
-    /**
-     * Crea un elemento de tarea para la lista
-     */
-    createTaskElement(task) {
-        const taskDiv = document.createElement('div');
-        taskDiv.className = 'task-item';
-        taskDiv.innerHTML = `
-            <div class="task-info">
-                <div class="task-name">${task.name}</div>
-                ${task.description ? `<div class="task-description">${task.description}</div>` : ''}
-            </div>
-            <div class="task-status">
-                <span class="status-badge status-${task.status}">${task.status}</span>
-                <select class="status-select" data-task-id="${task.id}">
-                    <option value="new" ${task.status === 'new' ? 'selected' : ''}>Nueva</option>
-                    <option value="active" ${task.status === 'active' ? 'selected' : ''}>Activa</option>
-                    <option value="closed" ${task.status === 'closed' ? 'selected' : ''}>Cerrada</option>
-                </select>
-            </div>
-        `;
-        
-        // Agregar evento para cambiar estado
-        const statusSelect = taskDiv.querySelector('.status-select');
-        statusSelect.addEventListener('change', (e) => {
-            this.updateTaskStatus(task.id, e.target.value);
-        });
-        
-        return taskDiv;
-    }
-
-    /**
-     * Actualiza el estado de una tarea
-     */
-    updateTaskStatus(taskId, newStatus) {
-        const task = this.state.tasks.find(t => t.id === taskId);
-        if (task) {
-            task.status = newStatus;
-            this.renderTasksList();
-            this.addBotMessage(`✅ Estado de tarea actualizado a: ${newStatus}`);
-        }
-    }
-
-    /**
-     * Muestra los botones fijos de gestión de tareas
-     */
-    showFixedTaskButtons() {
-        console.log('🔧 showFixedTaskButtons llamado');
-        console.log('🔧 this.elements.fixedTaskButtons:', this.elements.fixedTaskButtons);
-        
-        if (this.elements.fixedTaskButtons) {
-            console.log('🔧 Elemento encontrado, mostrando botones...');
-            
-            // Forzar estilos inline para asegurar visibilidad
-            this.elements.fixedTaskButtons.style.display = 'flex';
-            this.elements.fixedTaskButtons.style.position = 'fixed';
-            this.elements.fixedTaskButtons.style.bottom = '20px';
-            this.elements.fixedTaskButtons.style.left = '50%';
-            this.elements.fixedTaskButtons.style.transform = 'translateX(-50%)';
-            this.elements.fixedTaskButtons.style.zIndex = '1000';
-            this.elements.fixedTaskButtons.style.background = 'rgba(255, 255, 255, 0.95)';
-            this.elements.fixedTaskButtons.style.padding = '15px 20px';
-            this.elements.fixedTaskButtons.style.borderRadius = '15px';
-            this.elements.fixedTaskButtons.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.1)';
-            this.elements.fixedTaskButtons.style.border = '1px solid rgba(255, 255, 255, 0.2)';
-            
-            this.elements.fixedTaskButtons.classList.add('show');
-            console.log('✅ Botones fijos de tareas mostrados');
-            console.log('🔧 Estilo aplicado:', this.elements.fixedTaskButtons.style.display);
-            console.log('🔧 Clases aplicadas:', this.elements.fixedTaskButtons.className);
-            console.log('🔧 Posición:', this.elements.fixedTaskButtons.style.position);
-            console.log('🔧 Bottom:', this.elements.fixedTaskButtons.style.bottom);
-            
-            // Verificar que el elemento sea visible
-            const rect = this.elements.fixedTaskButtons.getBoundingClientRect();
-            console.log('🔧 Dimensiones del elemento:', rect);
-            console.log('🔧 Elemento visible:', rect.width > 0 && rect.height > 0);
-        } else {
-            console.error('❌ No se encontró el elemento fixedTaskButtons');
-        }
-    }
-
-    /**
-     * Crea los botones fijos dinámicamente si no existen
-     */
-    createFixedButtonsDynamically() {
-        console.log('🔧 Creando botones fijos dinámicamente...');
-        
-        // Crear el contenedor principal
-        const container = document.createElement('div');
-        container.id = 'fixedTaskButtons';
-        container.className = 'fixed-task-buttons';
-        container.style.display = 'flex';
-        container.style.position = 'fixed';
-        container.style.bottom = '20px';
-        container.style.left = '50%';
-        container.style.transform = 'translateX(-50%)';
-        container.style.zIndex = '1000';
-        container.style.background = 'rgba(255, 255, 255, 0.95)';
-        container.style.padding = '15px 20px';
-        container.style.borderRadius = '15px';
-        container.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.1)';
-        container.style.border = '1px solid rgba(255, 255, 255, 0.2)';
-        container.style.gap = '15px';
-        
-        // Crear botón "Crear Tarea"
-        const createTaskBtn = document.createElement('button');
-        createTaskBtn.id = 'fixedCreateTaskBtn';
-        createTaskBtn.className = 'fixed-task-btn create-task-btn';
-        createTaskBtn.title = 'Crear nueva tarea';
-        createTaskBtn.innerHTML = `
-            <span class="btn-icon">➕</span>
-            <span class="btn-text">Crear Tarea</span>
-        `;
-        createTaskBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-        createTaskBtn.style.color = 'white';
-        createTaskBtn.style.border = '2px solid rgba(16, 185, 129, 0.3)';
-        createTaskBtn.style.padding = '12px 20px';
-        createTaskBtn.style.borderRadius = '12px';
-        createTaskBtn.style.cursor = 'pointer';
-        createTaskBtn.style.display = 'flex';
-        createTaskBtn.style.alignItems = 'center';
-        createTaskBtn.style.gap = '8px';
-        createTaskBtn.style.minWidth = '160px';
-        createTaskBtn.style.justifyContent = 'center';
-        
-        // Crear botón "Consultar Tareas"
-        const viewTasksBtn = document.createElement('button');
-        viewTasksBtn.id = 'fixedViewTasksBtn';
-        viewTasksBtn.className = 'fixed-task-btn view-tasks-btn';
-        viewTasksBtn.title = 'Consultar tareas';
-        viewTasksBtn.innerHTML = `
-            <span class="btn-icon">📋</span>
-            <span class="btn-text">Consultar Tareas</span>
-        `;
-        viewTasksBtn.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
-        viewTasksBtn.style.color = 'white';
-        viewTasksBtn.style.border = '2px solid rgba(59, 130, 246, 0.3)';
-        viewTasksBtn.style.padding = '12px 20px';
-        viewTasksBtn.style.borderRadius = '12px';
-        viewTasksBtn.style.cursor = 'pointer';
-        viewTasksBtn.style.display = 'flex';
-        viewTasksBtn.style.alignItems = 'center';
-        viewTasksBtn.style.gap = '8px';
-        viewTasksBtn.style.minWidth = '160px';
-        viewTasksBtn.style.justifyContent = 'center';
-        
-        // Añadir botones al contenedor
-        container.appendChild(createTaskBtn);
-        container.appendChild(viewTasksBtn);
-        
-        // Añadir el contenedor al body
-        document.body.appendChild(container);
-        
-        // Actualizar la referencia en this.elements
-        this.elements.fixedTaskButtons = container;
-        this.elements.fixedCreateTaskBtn = createTaskBtn;
-        this.elements.fixedViewTasksBtn = viewTasksBtn;
-        
-        // Configurar event listeners
-        createTaskBtn.addEventListener('click', () => this.showTaskModal());
-        viewTasksBtn.addEventListener('click', () => this.showTasksBoard());
-        
-        console.log('✅ Botones fijos creados dinámicamente');
-        console.log('🔧 Contenedor creado:', container);
-        console.log('🔧 Botón crear tarea:', createTaskBtn);
-        console.log('🔧 Botón consultar tareas:', viewTasksBtn);
-    }
-
-    /**
-     * Oculta los botones fijos de gestión de tareas
-     */
-    hideFixedTaskButtons() {
-        if (this.elements.fixedTaskButtons) {
-            this.elements.fixedTaskButtons.style.display = 'none';
-            this.elements.fixedTaskButtons.classList.remove('show');
-            console.log('✅ Botones fijos de tareas ocultados');
-        }
-    }
-
-    /**
-     * Muestra el botón para agregar tareas
-     */
-    showAddTaskButton() {
-        const addTaskBtn = document.createElement('button');
-        addTaskBtn.className = 'add-task-btn';
-        addTaskBtn.innerHTML = '+';
-        addTaskBtn.title = 'Agregar nueva tarea';
-        addTaskBtn.addEventListener('click', () => this.showTaskModal());
-        
-        // Agregar el botón al chatbot
-        const chatForm = this.elements.chatForm;
-        chatForm.parentNode.insertBefore(addTaskBtn, chatForm);
-    }
-
-    /**
-     * MÉTODOS PARA CONFIGURACIÓN DE API KEY
-     */
-
-    /**
-     * Muestra el modal de configuración
-     */
-    showConfigModal() {
-        this.elements.configModal.style.display = 'flex';
-        this.elements.apiKey.focus();
-    }
-
-    /**
-     * Oculta el modal de configuración
-     */
-    hideConfigModal() {
-        this.elements.configModal.style.display = 'none';
-        this.elements.configForm.reset();
-    }
-
-    /**
-     * Verifica la configuración del sistema
-     */
-    async checkConfiguration() {
-        try {
-            console.log('🔍 Verificando configuración del sistema...');
-            
-            const response = await fetch(`${this.config.backendUrl}/api/config/status`);
-            const configStatus = await response.json();
-            
-            this.state.isConfigured = configStatus.configured;
-            
-            console.log('✅ Sistema configurado correctamente');
-            this.checkSavedUser();
-            
-        } catch (error) {
-            console.error('❌ Error verificando configuración:', error);
-            // Si no podemos verificar la configuración, intentamos con usuario
-            this.checkSavedUser();
-        }
-    }
-
-    /**
-     * Guarda la configuración de la API key
-     */
-    async saveConfiguration(apiKey) {
-        try {
-            const response = await fetch(`${this.config.backendUrl}/api/config/save`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ apiKey: apiKey })
-            });
-
-            if (response.ok) {
-                this.state.isConfigured = true;
-                this.showConfigStatus('✅ API Key configurada exitosamente', 'success');
-                this.hideConfigModal();
-            } else {
-                throw new Error('Error al guardar la configuración');
-            }
-        } catch (error) {
-            console.error('❌ Error guardando configuración:', error);
-            this.showConfigStatus('❌ Error al guardar la configuración', 'error');
-        }
-    }
-
-    /**
-     * Muestra el estado de la configuración
-     */
-    showConfigStatus(message, type) {
-        // Remover status anterior si existe
-        const existingStatus = this.elements.configModal.querySelector('.config-status');
-        if (existingStatus) {
-            existingStatus.remove();
-        }
-
-        // Crear nuevo status
-        const statusDiv = document.createElement('div');
-        statusDiv.className = `config-status ${type}`;
-        statusDiv.textContent = message;
-        
-        // Insertar después del formulario
-        this.elements.configForm.parentNode.insertBefore(statusDiv, this.elements.configForm.nextSibling);
-        
-        // Auto-remover después de 3 segundos
-        setTimeout(() => {
-            if (statusDiv.parentNode) {
-                statusDiv.remove();
-            }
-        }, 3000);
-    }
-
-    /**
-     * Configura los event listeners para gestión de proyectos
-     */
-    setupProjectEventListeners() {
-        // Modal de proyecto
-        if (this.elements.projectForm) {
-            this.elements.projectForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const projectName = this.elements.projectName.value.trim();
-                if (projectName) {
-                    this.createProject(projectName);
-                    this.hideProjectModal();
-                }
-            });
-        }
-
-        if (this.elements.closeProjectModal) {
-            this.elements.closeProjectModal.addEventListener('click', () => this.hideProjectModal());
-        }
-
-        if (this.elements.cancelProject) {
-            this.elements.cancelProject.addEventListener('click', () => this.hideProjectModal());
-        }
-
-        // Modal de tarea
-        if (this.elements.taskForm) {
-            this.elements.taskForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const taskName = this.elements.taskName.value.trim();
-                const taskDescription = this.elements.taskDescription.value.trim();
-                if (taskName) {
-                    this.addTask(taskName, taskDescription);
-                    this.hideTaskModal();
-                }
-            });
-        }
-
-        if (this.elements.closeTaskModal) {
-            this.elements.closeTaskModal.addEventListener('click', () => this.hideTaskModal());
-        }
-
-        if (this.elements.cancelTask) {
-            this.elements.cancelTask.addEventListener('click', () => this.hideTaskModal());
-        }
-
-        // Modal de consulta de tareas
-        if (this.elements.closeTasksModal) {
-            this.elements.closeTasksModal.addEventListener('click', () => this.hideTasksModal());
-        }
-
-        if (this.elements.statusFilter) {
-            this.elements.statusFilter.addEventListener('change', () => this.renderTasksList());
-        }
-
-        // Cerrar modales al hacer clic en el overlay
-        [this.elements.projectModal, this.elements.taskModal, this.elements.tasksModal, this.elements.configModal].forEach(modal => {
-            if (modal) {
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) {
-                        modal.style.display = 'none';
-                    }
-                });
-            }
-        });
-    }
-
-    /**
-     * Configura los event listeners para configuración de API
-     */
-    setupConfigEventListeners() {
-        // Botón de configuración
-        if (this.elements.configBtn) {
-            this.elements.configBtn.addEventListener('click', () => this.showConfigModal());
-        }
-
-        // Formulario de configuración
-        if (this.elements.configForm) {
-            this.elements.configForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const apiKey = this.elements.apiKey.value.trim();
-                if (apiKey) {
-                    this.saveConfiguration(apiKey);
-                }
-            });
-        }
-
-        // Botones de cerrar y cancelar
-        if (this.elements.closeConfigModal) {
-            this.elements.closeConfigModal.addEventListener('click', () => this.hideConfigModal());
-        }
-
-        if (this.elements.cancelConfig) {
-            this.elements.cancelConfig.addEventListener('click', () => this.hideConfigModal());
-        }
-
-        // Event listeners para botones fijos de tareas
-        if (this.elements.fixedCreateTaskBtn) {
-            this.elements.fixedCreateTaskBtn.addEventListener('click', () => this.showTaskModal());
-        }
-
-        if (this.elements.fixedViewTasksBtn) {
-            this.elements.fixedViewTasksBtn.addEventListener('click', () => this.showTasksBoard());
-        }
+        return headers;
     }
 
     /**
@@ -1343,6 +154,9 @@ class ChatbotApp {
         } else {
             console.error('❌ No se encontró el formulario de login');
         }
+        
+        // Eventos 2FA
+        this.setup2FAEventListeners();
         
         
         // Event listeners del modal de registro
@@ -1380,12 +194,6 @@ class ChatbotApp {
             });
         }
 
-        // Event listeners para gestión de proyectos
-        this.setupProjectEventListeners();
-        
-        // Event listeners para configuración de API
-        this.setupConfigEventListeners();
-        
         // Event listeners del popup de usuario no registrado
         if (this.elements.btnCerrarPopup) {
             this.elements.btnCerrarPopup.addEventListener('click', this.closeNoRegistradoPopup.bind(this));
@@ -1418,14 +226,10 @@ class ChatbotApp {
         if (this.elements.minimizeBtn) {
             this.elements.minimizeBtn.addEventListener('click', this.toggleMinimize.bind(this));
         }
-        if (this.elements.logoutBtn) {
-            this.elements.logoutBtn.addEventListener('click', this.logout.bind(this));
-        }
 
         // Delegación de eventos en el área de mensajes (para tarjetas del menú)
         if (this.elements.chatMessages) {
             this.elements.chatMessages.addEventListener('click', this.handleMenuCardClick.bind(this));
-            this.elements.chatMessages.addEventListener('change', this.handleTaskStatusChange.bind(this));
         }
     }
 
@@ -1452,40 +256,30 @@ class ChatbotApp {
     }
 
     /**
-     * Maneja el envío del formulario de login
+     * Maneja el envío del formulario de login con CAPTCHA
      */
     handleLoginSubmit(event) {
         event.preventDefault();
         
-        console.log('🔐 Procesando login...');
-        console.log('Evento recibido:', event);
-        console.log('🔍 Elementos encontrados:', {
-            nombreInput: this.elements.nombreInput,
-            correoInput: this.elements.correoInput,
-            contraseñaInput: this.elements.contraseñaInput,
-            mensajeExito: this.elements.mensajeExito
-        });
-        
-        // Verificar que los elementos existan
-        if (!this.elements.nombreInput || !this.elements.correoInput || !this.elements.contraseñaInput || !this.elements.mensajeExito) {
-            console.error('❌ Elementos del formulario de login no encontrados');
-            return;
-        }
+        console.log('🔐 Procesando login con CAPTCHA...');
         
         // Obtener datos del formulario
-        const nombre = this.elements.nombreInput.value.trim();
         const correo = this.elements.correoInput.value.trim();
         const contraseña = this.elements.contraseñaInput.value.trim();
         
         // Validaciones básicas
-        if (!nombre || !correo || !contraseña) {
-            this.elements.mensajeExito.textContent = 'Por favor completa todos los campos';
-            this.elements.mensajeExito.style.color = 'red';
+        if (!correo || !contraseña) {
+            this.showMessage('Por favor completa correo y contraseña', 'error');
             return;
         }
         
+        // Verificar que el CAPTCHA esté resuelto
+        if (!this.captchaVerified) {
+            this.showMessage('Por favor resuelve el CAPTCHA primero', 'error');
+            return;
+        }
         
-        // Enviar datos al backend para login
+        // Proceder con login normal (sin 2FA)
         this.loginUser({ correo, contraseña });
     }
 
@@ -1507,18 +301,22 @@ class ChatbotApp {
             const result = await response.json();
             console.log('📡 Respuesta del backend:', result);
             
-            if (result.success) {
-                // Guardar datos de login
+            // Verificar si el login fue exitoso (nuevo formato JWT)
+            if (result.access_token) {
+                // Guardar token JWT y datos de usuario
                 this.state.loginData = { 
-                    nombre: result.nombre, 
-                    correo: result.correo, 
-                    contraseña: loginData.contraseña 
+                    nombre: result.username, 
+                    correo: result.email, 
+                    token: result.access_token,
+                    tokenType: result.token_type,
+                    expiresIn: result.expires_in
                 };
                 this.state.isLoggedIn = true;
-                this.state.userName = result.nombre;
+                this.state.userName = result.username;
                 
                 // Guardar en localStorage
                 localStorage.setItem('user_login', JSON.stringify(this.state.loginData));
+                localStorage.setItem('jwt_token', result.access_token);
                 
                 // Mostrar mensaje de éxito
                 this.elements.mensajeExito.textContent = '¡Login exitoso! Redirigiendo al chatbot...';
@@ -1560,6 +358,128 @@ class ChatbotApp {
             this.elements.mensajeExito.style.color = 'red';
         }
     }
+
+    /**
+     * Configura los event listeners para CAPTCHA
+     */
+    setup2FAEventListeners() {
+        // Event listeners para CAPTCHA
+        const btnGenerarCaptcha = document.getElementById('btn-generar-captcha');
+        if (btnGenerarCaptcha) {
+            btnGenerarCaptcha.addEventListener('click', this.generateCaptcha.bind(this));
+        }
+        
+        const btnVerificarCaptcha = document.getElementById('btn-verificar-captcha');
+        if (btnVerificarCaptcha) {
+            btnVerificarCaptcha.addEventListener('click', this.verifyCaptcha.bind(this));
+        }
+        
+        // Generar CAPTCHA inicial al cargar la página
+        this.generateCaptcha();
+        
+    }
+
+
+    /**
+     * Muestra mensaje en la interfaz
+     */
+    showMessage(message, type = 'info') {
+        const mensajeElement = document.getElementById('mensaje-error') || document.getElementById('mensaje-exito');
+        if (mensajeElement) {
+            mensajeElement.textContent = message;
+            mensajeElement.style.color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'blue';
+        }
+    }
+
+
+
+    /**
+     * Genera un CAPTCHA matemático
+     */
+    generateCaptcha() {
+        const captchaChallenge = document.getElementById('captcha-challenge');
+        const captchaAnswer = document.getElementById('captcha-answer');
+        
+        if (!captchaChallenge || !captchaAnswer) return;
+        
+        // Generar operación matemática simple
+        const num1 = Math.floor(Math.random() * 10) + 1;
+        const num2 = Math.floor(Math.random() * 10) + 1;
+        const operaciones = ['+', '-', '*'];
+        const operacion = operaciones[Math.floor(Math.random() * operaciones.length)];
+        
+        let resultado;
+        let pregunta;
+        
+        switch (operacion) {
+            case '+':
+                resultado = num1 + num2;
+                pregunta = `${num1} + ${num2} = ?`;
+                break;
+            case '-':
+                resultado = num1 - num2;
+                pregunta = `${num1} - ${num2} = ?`;
+                break;
+            case '*':
+                resultado = num1 * num2;
+                pregunta = `${num1} × ${num2} = ?`;
+                break;
+        }
+        
+        captchaChallenge.textContent = pregunta;
+        captchaAnswer.value = '';
+        captchaAnswer.setAttribute('data-expected', resultado);
+        
+        // Agregar efectos visuales
+        captchaChallenge.style.animation = 'none';
+        setTimeout(() => {
+            captchaChallenge.style.animation = 'shake 0.5s ease-in-out';
+        }, 10);
+    }
+
+    /**
+     * Verifica el CAPTCHA
+     */
+    verifyCaptcha() {
+        const captchaAnswer = document.getElementById('captcha-answer');
+        const expectedAnswer = captchaAnswer?.getAttribute('data-expected');
+        const userAnswer = captchaAnswer?.value.trim();
+        
+        if (!userAnswer) {
+            this.showMessage('Por favor ingresa la respuesta del CAPTCHA', 'error');
+            return;
+        }
+        
+        if (parseInt(userAnswer) === parseInt(expectedAnswer)) {
+            this.showMessage('✅ CAPTCHA verificado correctamente!', 'success');
+            this.captchaVerified = true;
+            
+            // Ocultar sección CAPTCHA y mostrar botón de login
+            const captchaSection = document.getElementById('captcha-section');
+            if (captchaSection) {
+                captchaSection.style.display = 'none';
+            }
+            
+            // Habilitar login
+            this.enableLogin();
+        } else {
+            this.showMessage('❌ Respuesta incorrecta. Intenta nuevamente.', 'error');
+            this.generateCaptcha(); // Generar nuevo CAPTCHA
+        }
+    }
+
+    /**
+     * Habilita el botón de login después de verificar CAPTCHA
+     */
+    enableLogin() {
+        const btnLogin = document.getElementById('btn-login');
+        if (btnLogin) {
+            btnLogin.style.backgroundColor = '#007bff';
+            btnLogin.disabled = false;
+            btnLogin.textContent = '🔐 Iniciar Sesión (Verificado)';
+        }
+    }
+
 
     /**
      * Muestra la sección de login
@@ -1625,8 +545,9 @@ class ChatbotApp {
     handleLogout() {
         console.log('🚪 Cerrando sesión...');
         
-        // Limpiar datos de login
+        // Limpiar datos de login y token JWT
         localStorage.removeItem('user_login');
+        localStorage.removeItem('jwt_token');
         localStorage.removeItem('chatbot_user');
         localStorage.removeItem('chatbot_date');
         
@@ -1747,17 +668,32 @@ class ChatbotApp {
         }
     }
 
+    /**
+     * Verifica la configuración del sistema
+     */
+    async checkConfiguration() {
+        try {
+            console.log('🔍 Verificando configuración del sistema...');
+            
+            const response = await fetch(`${this.config.backendUrl}/api/config/status`);
+            const configStatus = await response.json();
+            
+            this.state.isConfigured = configStatus.configured;
+            
+            console.log('✅ Sistema configurado correctamente');
+            this.checkSavedUser();
+            
+        } catch (error) {
+            console.error('❌ Error verificando configuración:', error);
+            // Si no podemos verificar la configuración, intentamos con usuario
+            this.checkSavedUser();
+        }
+    }
 
     /**
      * Verifica si hay un usuario guardado en localStorage
      */
     checkSavedUser() {
-        // Evitar duplicación si ya se está mostrando el chatbot
-        if (this.state.chatbotInitialized) {
-            console.log('🔄 Chatbot ya inicializado, evitando duplicación');
-            return;
-        }
-
         const savedUser = localStorage.getItem('chatbot_user');
         const savedDate = localStorage.getItem('chatbot_date');
 
@@ -1765,7 +701,6 @@ class ChatbotApp {
             console.log(`👤 Usuario guardado encontrado: ${savedUser}`);
             this.state.userName = savedUser;
             this.state.selectedDate = savedDate;
-            this.state.chatbotInitialized = true;
             this.showChatbot();
         } else {
             // Si hay datos de login, usar el nombre del login como usuario del chatbot
@@ -1773,7 +708,6 @@ class ChatbotApp {
                 console.log(`👤 Usando nombre del login: ${this.state.loginData.nombre}`);
                 this.state.userName = this.state.loginData.nombre;
                 this.state.selectedDate = new Date().toISOString().split('T')[0];
-                this.state.chatbotInitialized = true;
                 this.showChatbot();
             } else {
                 // Si no hay datos de login, mostrar login
@@ -1791,12 +725,6 @@ class ChatbotApp {
      * Muestra el chatbot con saludo personalizado
      */
     showChatbot() {
-        // Evitar duplicación si ya se está mostrando el chatbot
-        if (this.state.chatbotInitialized) {
-            console.log('🔄 Chatbot ya inicializado, evitando duplicación');
-            return;
-        }
-
         console.log('💬 Mostrando chatbot...');
         console.log('Estado del chatbot:', {
             userName: this.state.userName,
@@ -1804,21 +732,19 @@ class ChatbotApp {
             chatbot: this.elements.chatbot
         });
         
-        // Marcar como inicializado
-        this.state.chatbotInitialized = true;
-        
         // Limpiar mensajes anteriores
         if (this.elements.chatMessages) {
+            // Resetear estado de scroll
+            this.state.scrollTimeout = null;
+            this.state.isScrolling = false;
+            
             this.elements.chatMessages.innerHTML = '';
             this.state.conversationHistory = [];
             
             // Mostrar saludo personalizado
             setTimeout(() => {
-                this.addBotMessage(`¡Hola, ${this.state.userName}! Soy tu asistente de proyectos. ¿En qué puedo ayudarte hoy?`);
+                this.addBotMessage(`¡Hola, ${this.state.userName}! Soy tu asistente de proyectos. ¿En qué puedo ayudarte hoy?\n\nMOSTRAR_MENU_PRINCIPAL`);
                 // Mostrar menú después del saludo
-                setTimeout(() => {
-                    this.showMenuOptions();
-                }, 1000);
                 if (this.elements.chatInput) {
                     this.elements.chatInput.focus();
                 }
@@ -1867,21 +793,12 @@ class ChatbotApp {
      * Muestra las opciones del menú como botones interactivos
      */
     async showMenuOptions() {
-        // Evitar duplicación del menú si ya se está mostrando
-        if (this.state.menuShown) {
-            console.log('🔄 Menú ya mostrado, evitando duplicación');
-            return;
-        }
-
         const menuData = await this.loadMenuOptions();
         
         if (!menuData || !menuData.opciones) {
             this.addBotMessage('Lo siento, no pude cargar las opciones del menú. Por favor, intenta nuevamente.');
             return;
         }
-
-        // Marcar como mostrado
-        this.state.menuShown = true;
 
         // Crear el mensaje con botones
         const menuMessage = this.createMenuMessage(menuData);
@@ -1897,8 +814,7 @@ class ChatbotApp {
             1: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
             2: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
             3: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 21L16.514 16.506L21 21ZM19 10.5C19 15.194 15.194 19 10.5 19C5.806 19 2 15.194 2 10.5C2 5.806 5.806 2 10.5 2C15.194 2 19 5.806 19 10.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-            4: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-            5: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
+            4: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9M16 17L21 12L16 7M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
         };
 
         let messageHTML = `<div class="menu-container">`;
@@ -1908,13 +824,7 @@ class ChatbotApp {
         messageHTML += `</div>`;
         messageHTML += `<div class="menu-options">`;
         
-        // Filtrar solo la opción "Salir" (opción 4) del menú principal, mantener las demás
-        const opcionesFiltradas = menuData.opciones.filter(opcion => {
-            // Solo excluir la opción 4 (Salir) si tiene la acción "salir"
-            return !(opcion.id === 4 && opcion.accion === 'salir');
-        });
-        
-        opcionesFiltradas.forEach(opcion => {
+        menuData.opciones.forEach(opcion => {
             const icono = iconos[opcion.id] || iconos[1]; // Usar icono por defecto si no existe
             messageHTML += `
                 <div class="menu-option-card" 
@@ -1949,8 +859,7 @@ class ChatbotApp {
             1: "Inicia un nuevo proyecto con ayuda de IA",
             2: "Genera tareas automáticamente para tu proyecto",
             3: "Revisa el estado de tus proyectos existentes",
-            4: "Gestiona las tareas de tu proyecto",
-            5: "Otra funcionalidad del sistema"
+            4: "Finalizar sesión y salir del sistema"
         };
         return descriptions[optionId] || "Acción del menú";
     }
@@ -1996,7 +905,7 @@ class ChatbotApp {
             const url = `${this.config.backendUrl}/api/menu/procesar/${optionId}?sessionId=${this.state.menuSessionId}`;
             const res = await fetch(url, { 
                 method: 'POST', 
-                headers: { 'Content-Type': 'application/json' } 
+                headers: this.getAuthHeaders() 
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const resultado = await res.text();
@@ -2031,11 +940,11 @@ class ChatbotApp {
         this.state.waitingForNewTask = false;
         this.state.waitingForTaskNumber = false;
         
-        // Resetear flags de duplicación
-        this.state.chatbotInitialized = false;
-        this.state.menuShown = false;
-        
         if (this.elements.chatMessages) {
+            // Resetear estado de scroll
+            this.state.scrollTimeout = null;
+            this.state.isScrolling = false;
+            
             this.elements.chatMessages.innerHTML = '';
         }
         
@@ -2088,23 +997,11 @@ class ChatbotApp {
             // Procesar la acción seleccionada usando el backend (que pedirá la idea)
             this.processMenuAction(action, description, optionId);
         } else if (optionId === 2) {
-            // Opción 2: Crear tarea - mostrar modal para agregar tarea
-            console.log('➕ Mostrando modal para crear tarea...');
-            this.showTaskModal();
-        } else if (optionId === 3) {
-            // Opción 3: Consultar tareas - mostrar tablero de tareas
-            console.log('📋 Mostrando tablero de tareas...');
-            this.showTasksBoard();
-        } else if (optionId === 4) {
-            // Opción 4: Gestionar tareas - mostrar modal de tareas
-            console.log('📋 Mostrando modal de gestión de tareas...');
-            this.showTasksModal();
-        } else if (optionId === 5) {
-            // Opción 5: Otra funcionalidad - procesar con backend
-            console.log('🔧 Procesando opción 5...');
+            // Opción 2: Gestionar tareas - mostrar tareas existentes y permitir agregar nuevas
+            console.log('📋 Procesando gestión de tareas...');
             this.processMenuAction(action, description, optionId);
         } else {
-            // Procesar la acción seleccionada usando el backend para otras opciones
+            // Procesar la acción seleccionada usando el backend para opción 3
             this.processMenuAction(action, description, optionId);
         }
     }
@@ -2121,20 +1018,12 @@ class ChatbotApp {
             
             const response = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                headers: this.getAuthHeaders()
             });
 
             if (response.ok) {
                 const resultado = await response.text();
                 this.addBotMessage(resultado);
-                
-                // Si es crear proyecto (opción 1), sincronizar las tareas generadas
-                if (optionId === 1) {
-                    console.log('📋 Proyecto creado, sincronizando tareas...');
-                    await this.syncTasksFromBackend();
-                }
                 
                 if (this.config.debugMode) {
                     this.debugLog('Opción procesada exitosamente con sesión', { 
@@ -2198,29 +1087,6 @@ class ChatbotApp {
      */
     async handleChatSubmit(event) {
         event.preventDefault();
-        
-        const message = this.elements.chatInput.value.trim().toLowerCase();
-        
-        // Manejar comandos de proyectos
-        if (message.includes('crear proyecto') || message.includes('nuevo proyecto')) {
-            this.showProjectModal();
-            this.elements.chatInput.value = '';
-            return;
-        }
-        
-        if (message.includes('agregar tarea') || message.includes('nueva tarea')) {
-            this.showTaskModal();
-            this.elements.chatInput.value = '';
-            return;
-        }
-        
-        if (message.includes('consultar tareas') || message.includes('ver tareas') || message.includes('tareas')) {
-            this.showTasksModal();
-            this.elements.chatInput.value = '';
-            return;
-        }
-        
-        // Si no es un comando de proyecto, procesar como mensaje normal
         await this.sendMessage();
     }
 
@@ -2319,7 +1185,8 @@ class ChatbotApp {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'text/plain'
+                'Content-Type': 'text/plain',
+                'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
             },
             body: ideaProyecto
         });
@@ -2354,7 +1221,8 @@ class ChatbotApp {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'text/plain'
+                'Content-Type': 'text/plain',
+                'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
             },
             body: nuevaTarea
         });
@@ -2388,7 +1256,8 @@ class ChatbotApp {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'text/plain'
+                'Content-Type': 'text/plain',
+                'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
             },
             body: numeroTarea
         });
@@ -2469,7 +1338,10 @@ class ChatbotApp {
         const url = `${this.config.backendUrl}/api/menu/procesar/1/datos?sessionId=${this.state.menuSessionId}`;
         const res = await fetch(url, { 
             method: 'POST', 
-            headers: { 'Content-Type': 'text/plain' }, 
+            headers: { 
+                'Content-Type': 'text/plain',
+                'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
+            }, 
             body: idea 
         });
         if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -2488,7 +1360,10 @@ class ChatbotApp {
         const url = `${this.config.backendUrl}/api/menu/procesar/2/datos?sessionId=${this.state.menuSessionId}`;
         const res = await fetch(url, { 
             method: 'POST', 
-            headers: { 'Content-Type': 'text/plain' }, 
+            headers: { 
+                'Content-Type': 'text/plain',
+                'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
+            }, 
             body: tarea 
         });
         if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -2507,7 +1382,10 @@ class ChatbotApp {
         const url = `${this.config.backendUrl}/api/menu/procesar/3/datos?sessionId=${this.state.menuSessionId}`;
         const res = await fetch(url, { 
             method: 'POST', 
-            headers: { 'Content-Type': 'text/plain' }, 
+            headers: { 
+                'Content-Type': 'text/plain',
+                'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
+            }, 
             body: num 
         });
         if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -2613,7 +1491,7 @@ class ChatbotApp {
         
         if (textElement) {
             textElement.textContent = this.state.currentStreamingMessage.content;
-            this.scrollToBottom();
+            this.scrollToBottom(true);
         }
     }
 
@@ -2674,7 +1552,9 @@ class ChatbotApp {
         
         const messageElement = this.createMessageElement('bot', displayText, isHTML, metadata);
         this.elements.chatMessages.appendChild(messageElement);
-        this.scrollToBottom();
+        
+        // Scroll forzado después de agregar el mensaje
+        this.scrollToBottom(true);
         
         // Si se detectó la instrucción, mostrar el menú después de un breve delay
         if (shouldShowMenu) {
@@ -2692,7 +1572,10 @@ class ChatbotApp {
     addUserMessage(text) {
         const messageElement = this.createMessageElement('user', text);
         this.elements.chatMessages.appendChild(messageElement);
-        this.scrollToBottom();
+        
+        // Scroll forzado después de agregar el mensaje
+        this.scrollToBottom(true);
+        
         return messageElement;
     }
 
@@ -2760,12 +1643,48 @@ class ChatbotApp {
     }
 
     /**
-     * Hace scroll al final del chat
+     * Hace scroll al final del chat de forma suave y sin parpadeos
      */
-    scrollToBottom() {
-        setTimeout(() => {
-            this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
-        }, 100);
+    scrollToBottom(force = false) {
+        // Cancelar scroll anterior si existe
+        if (this.state.scrollTimeout) {
+            clearTimeout(this.state.scrollTimeout);
+            this.state.scrollTimeout = null;
+        }
+        
+        // Si ya está haciendo scroll y no es forzado, ignorar
+        if (this.state.isScrolling && !force) {
+            return;
+        }
+        
+        this.state.isScrolling = true;
+        
+        // Usar requestAnimationFrame para scroll suave
+        const scroll = () => {
+            const messagesContainer = this.elements.chatMessages;
+            if (!messagesContainer) {
+                this.state.isScrolling = false;
+                return;
+            }
+            
+            const targetScroll = messagesContainer.scrollHeight;
+            const currentScroll = messagesContainer.scrollTop;
+            const maxScroll = messagesContainer.scrollHeight - messagesContainer.clientHeight;
+            
+            // Solo hacer scroll si no está cerca del final o si es forzado
+            if (force || Math.abs(currentScroll - maxScroll) > 50) {
+                messagesContainer.scrollTop = targetScroll;
+            }
+            
+            this.state.isScrolling = false;
+        };
+        
+        // Usar requestAnimationFrame para mejor rendimiento
+        if (window.requestAnimationFrame) {
+            requestAnimationFrame(scroll);
+        } else {
+            this.state.scrollTimeout = setTimeout(scroll, 50);
+        }
     }
 
     /**
@@ -2832,38 +1751,6 @@ class ChatbotApp {
     }
 
     /**
-     * Cierra la sesión del usuario
-     */
-    logout() {
-        console.log('🚪 Cerrando sesión...');
-        
-        // Limpiar datos de login
-        localStorage.removeItem('user_login');
-        
-        // Resetear estado
-        this.state.isLoggedIn = false;
-        this.state.loginData = { nombre: '', correo: '', contraseña: '' };
-        this.state.userName = '';
-        this.state.conversationHistory = [];
-        this.state.chatbotInitialized = false;
-        this.state.menuShown = false;
-        this.state.currentProject = null;
-        this.state.tasks = [];
-        this.state.projectCreated = false;
-        
-        // Ocultar botones fijos de tareas
-        this.hideFixedTaskButtons();
-        
-        // Mostrar mensaje de despedida
-        this.addBotMessage('👋 ¡Hasta luego! Gracias por usar el asistente de proyectos.');
-        
-        // Mostrar login después de un breve delay
-        setTimeout(() => {
-            this.showLoginSection();
-        }, 1500);
-    }
-
-    /**
      * Alterna el estado minimizado del chatbot
      */
     toggleMinimize() {
@@ -2920,9 +1807,7 @@ class ChatbotApp {
             
             const response = await fetch(`${this.config.backendUrl}/api/menu/sesion/${this.state.menuSessionId}/estado`, {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                headers: this.getAuthHeaders()
             });
 
             if (response.ok) {
@@ -3276,5 +2161,6 @@ let chatbotApp;
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🎯 DOM cargado - Inicializando aplicación con backend...');
     chatbotApp = new ChatbotApp();
+    window.chatbotApp = chatbotApp; // Hacer la instancia global
     chatbotApp.init();
 });

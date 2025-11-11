@@ -39,19 +39,21 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
                 // Endpoints públicos (sin autenticación)
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/config/**").permitAll()
-                .requestMatchers("/api/menu/**").permitAll()
-                .requestMatchers("/api/webhook/**").permitAll()
+                .requestMatchers("/api/auth/**").permitAll() // Registro y login
+                .requestMatchers("/api/config/**").permitAll() // Configuración pública
+                .requestMatchers("/api/menu/**").permitAll() // Menú del chatbot (público para funcionalidad)
+                .requestMatchers("/api/webhook/**").permitAll() // Webhook de ChatGPT (público para funcionalidad)
+                
+                // Recursos estáticos (frontend)
                 .requestMatchers("/").permitAll()
                 .requestMatchers("/index.html").permitAll()
                 .requestMatchers("/app.js").permitAll()
                 .requestMatchers("/Styles.css").permitAll()
-                .requestMatchers("/Asistentes-virtuales.jpg").permitAll()
-                .requestMatchers("/imagen1.png").permitAll()
-                .requestMatchers("/imagen2.png").permitAll()
-                // Permitir todas las peticiones por ahora (para desarrollo)
-                .anyRequest().permitAll()
+                .requestMatchers("/*.jpg", "/*.png", "/*.gif", "/*.svg", "/*.ico").permitAll()
+                .requestMatchers("/favicon.ico").permitAll()
+                
+                // Endpoints protegidos requieren autenticación JWT
+                .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         

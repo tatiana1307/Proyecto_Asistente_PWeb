@@ -53,6 +53,7 @@ class ChatbotApp {
             chatInput: document.getElementById('chatInput'),
             sendBtn: document.getElementById('sendBtn'),
             changeUserBtn: document.getElementById('changeUserBtn'),
+            logoutBtn: document.getElementById('logoutBtn'),
             minimizeBtn: document.getElementById('minimizeBtn'),
             chatStatus: document.getElementById('chatStatus'),
             statusIndicator: document.getElementById('statusIndicator'),
@@ -80,7 +81,10 @@ class ChatbotApp {
         menuSessionActive: true,
         waitingForProjectIdea: false,
         waitingForNewTask: false,
-        waitingForTaskNumber: false
+        waitingForTaskNumber: false,
+        // Control de scroll para evitar parpadeos
+        scrollTimeout: null,
+        isScrolling: false
         };
 
         // Inicialización
@@ -220,6 +224,9 @@ class ChatbotApp {
         if (this.elements.changeUserBtn) {
             this.elements.changeUserBtn.addEventListener('click', this.changeUser.bind(this));
         }
+        if (this.elements.logoutBtn) {
+            this.elements.logoutBtn.addEventListener('click', this.handleLogout.bind(this));
+        }
         if (this.elements.minimizeBtn) {
             this.elements.minimizeBtn.addEventListener('click', this.toggleMinimize.bind(this));
         }
@@ -260,19 +267,34 @@ class ChatbotApp {
         
         console.log('🔐 Procesando login con CAPTCHA...');
         
+        // Deshabilitar botón de login mientras se procesa
+        const btnLogin = document.getElementById('btn-login');
+        if (btnLogin) {
+            btnLogin.disabled = true;
+            btnLogin.style.opacity = '0.6';
+            btnLogin.style.cursor = 'not-allowed';
+        }
+        
+        // Limpiar mensajes anteriores
+        this.clearMessages();
+        
         // Obtener datos del formulario
         const correo = this.elements.correoInput.value.trim();
         const contraseña = this.elements.contraseñaInput.value.trim();
         
         // Validaciones básicas
         if (!correo || !contraseña) {
-            this.showMessage('Por favor completa correo y contraseña', 'error');
+            this.showMessage('Por favor completa correo y contraseña', 'error', () => {
+                this.enableLoginButton();
+            });
             return;
         }
         
         // Verificar que el CAPTCHA esté resuelto
         if (!this.captchaVerified) {
-            this.showMessage('Por favor resuelve el CAPTCHA primero', 'error');
+            this.showMessage('Por favor resuelve el CAPTCHA primero', 'error', () => {
+                this.enableLoginButton();
+            });
             return;
         }
         
@@ -316,10 +338,9 @@ class ChatbotApp {
                 localStorage.setItem('jwt_token', result.access_token);
                 
                 // Mostrar mensaje de éxito
-                this.elements.mensajeExito.textContent = '¡Login exitoso! Redirigiendo al chatbot...';
-                this.elements.mensajeExito.style.color = 'green';
+                this.showMessage('¡Login exitoso! Redirigiendo al chatbot...', 'success');
                 
-                console.log('✅ Login exitoso para:', result.nombre);
+                console.log('✅ Login exitoso para:', result.username);
                 
                 // Transición al chatbot después de un breve delay
                 setTimeout(() => {
@@ -335,24 +356,26 @@ class ChatbotApp {
                 // Verificar si el error es porque el usuario no está registrado
                 if (result.message && result.message.includes('no está registrado')) {
                     console.log('⚠️ Usuario no registrado, mostrando popup');
-                    // Limpiar mensaje de éxito
-                    this.elements.mensajeExito.textContent = '';
                     // Mostrar popup
                     this.showNoRegistradoPopup();
-                    // NO hacer transición al chatbot
+                    // Habilitar botón de login
+                    this.enableLoginButton();
                     return;
                 } else {
                     console.log('❌ Otro tipo de error, mostrando mensaje normal');
-                    this.elements.mensajeExito.textContent = result.message || 'Credenciales incorrectas';
-                    this.elements.mensajeExito.style.color = 'red';
+                    const errorMessage = result.message || 'Credenciales incorrectas';
+                    this.showMessage(errorMessage, 'error', () => {
+                        this.enableLoginButton();
+                    });
                     console.error('❌ Error en login:', result.message);
                 }
             }
             
         } catch (error) {
             console.error('❌ Error de conexión:', error);
-            this.elements.mensajeExito.textContent = 'Error de conexión. Verifica que el backend esté ejecutándose.';
-            this.elements.mensajeExito.style.color = 'red';
+            this.showMessage('Error de conexión. Verifica que el backend esté ejecutándose.', 'error', () => {
+                this.enableLoginButton();
+            });
         }
     }
 
@@ -378,13 +401,66 @@ class ChatbotApp {
 
 
     /**
+     * Limpia los mensajes de error y éxito
+     */
+    clearMessages() {
+        const mensajeError = document.getElementById('mensaje-error');
+        const mensajeExito = document.getElementById('mensaje-exito');
+        if (mensajeError) {
+            mensajeError.textContent = '';
+            mensajeError.style.display = 'none';
+        }
+        if (mensajeExito) {
+            mensajeExito.textContent = '';
+            mensajeExito.style.display = 'none';
+        }
+    }
+
+    /**
      * Muestra mensaje en la interfaz
      */
-    showMessage(message, type = 'info') {
-        const mensajeElement = document.getElementById('mensaje-error') || document.getElementById('mensaje-exito');
-        if (mensajeElement) {
-            mensajeElement.textContent = message;
-            mensajeElement.style.color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'blue';
+    showMessage(message, type = 'info', callback = null) {
+        // Limpiar mensajes anteriores primero
+        this.clearMessages();
+        
+        const mensajeError = document.getElementById('mensaje-error');
+        const mensajeExito = document.getElementById('mensaje-exito');
+        
+        if (type === 'error' && mensajeError) {
+            mensajeError.textContent = message;
+            mensajeError.style.display = 'flex';
+            mensajeError.className = 'mensaje-error';
+            
+            // Scroll suave al mensaje de error
+            setTimeout(() => {
+                mensajeError.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+            
+            // Ejecutar callback después de mostrar el error
+            if (callback) {
+                setTimeout(callback, 500);
+            }
+        } else if (type === 'success' && mensajeExito) {
+            mensajeExito.textContent = message;
+            mensajeExito.style.display = 'flex';
+            mensajeExito.className = 'mensaje-exito';
+            
+            // Ejecutar callback después de mostrar el éxito
+            if (callback) {
+                setTimeout(callback, 500);
+            }
+        }
+    }
+
+    /**
+     * Habilita el botón de login
+     */
+    enableLoginButton() {
+        const btnLogin = document.getElementById('btn-login');
+        if (btnLogin) {
+            btnLogin.disabled = false;
+            btnLogin.style.opacity = '1';
+            btnLogin.style.cursor = 'pointer';
         }
     }
 
@@ -423,15 +499,32 @@ class ChatbotApp {
                 break;
         }
         
-        captchaChallenge.textContent = pregunta;
-        captchaAnswer.value = '';
-        captchaAnswer.setAttribute('data-expected', resultado);
+        // Mostrar el desafío con animación
+        captchaChallenge.style.opacity = '0';
+        captchaChallenge.style.transform = 'scale(0.9)';
         
-        // Agregar efectos visuales
-        captchaChallenge.style.animation = 'none';
         setTimeout(() => {
-            captchaChallenge.style.animation = 'shake 0.5s ease-in-out';
-        }, 10);
+            captchaChallenge.textContent = pregunta;
+            captchaChallenge.style.opacity = '1';
+            captchaChallenge.style.transform = 'scale(1)';
+            captchaChallenge.style.transition = 'all 0.3s ease';
+        }, 150);
+        
+        // Guardar la respuesta esperada
+        captchaAnswer.setAttribute('data-expected', resultado);
+        captchaAnswer.value = '';
+        captchaAnswer.classList.remove('correct', 'incorrect');
+        captchaAnswer.disabled = false;
+        captchaAnswer.focus();
+        
+        // Resetear estado de verificación
+        this.captchaVerified = false;
+        
+        // Habilitar botón de verificar
+        const btnVerificar = document.getElementById('btn-verificar-captcha');
+        if (btnVerificar) {
+            btnVerificar.disabled = false;
+        }
     }
 
     /**
@@ -444,25 +537,67 @@ class ChatbotApp {
         
         if (!userAnswer) {
             this.showMessage('Por favor ingresa la respuesta del CAPTCHA', 'error');
+            if (captchaAnswer) {
+                captchaAnswer.classList.add('incorrect');
+                setTimeout(() => captchaAnswer.classList.remove('incorrect'), 500);
+            }
             return;
         }
         
-        if (parseInt(userAnswer) === parseInt(expectedAnswer)) {
-            this.showMessage('✅ CAPTCHA verificado correctamente!', 'success');
-            this.captchaVerified = true;
-            
-            // Ocultar sección CAPTCHA y mostrar botón de login
-            const captchaSection = document.getElementById('captcha-section');
-            if (captchaSection) {
-                captchaSection.style.display = 'none';
-            }
-            
-            // Habilitar login
-            this.enableLogin();
-        } else {
-            this.showMessage('❌ Respuesta incorrecta. Intenta nuevamente.', 'error');
-            this.generateCaptcha(); // Generar nuevo CAPTCHA
+        // Deshabilitar botones mientras se verifica
+        const btnVerificar = document.getElementById('btn-verificar-captcha');
+        if (btnVerificar) {
+            btnVerificar.disabled = true;
         }
+        
+        // Simular pequeña pausa para mejor UX
+        setTimeout(() => {
+            if (parseInt(userAnswer) === parseInt(expectedAnswer)) {
+                this.showMessage('✅ CAPTCHA verificado correctamente!', 'success');
+                this.captchaVerified = true;
+                
+                // Marcar como correcto
+                if (captchaAnswer) {
+                    captchaAnswer.classList.add('correct');
+                    captchaAnswer.disabled = true;
+                }
+                
+                // Ocultar sección CAPTCHA después de un breve delay
+                setTimeout(() => {
+                    const captchaSection = document.getElementById('captcha-section');
+                    if (captchaSection) {
+                        captchaSection.style.opacity = '0';
+                        captchaSection.style.transform = 'translateY(-10px)';
+                        setTimeout(() => {
+                            captchaSection.style.display = 'none';
+                        }, 300);
+                    }
+                }, 1000);
+                
+                // Habilitar login
+                this.enableLogin();
+            } else {
+                this.showMessage('❌ Respuesta incorrecta. Intenta nuevamente.', 'error', () => {
+                    // Habilitar botón después de mostrar el error
+                    if (btnVerificar) {
+                        btnVerificar.disabled = false;
+                    }
+                });
+                
+                // Marcar como incorrecto
+                if (captchaAnswer) {
+                    captchaAnswer.classList.add('incorrect');
+                    captchaAnswer.value = '';
+                    setTimeout(() => {
+                        captchaAnswer.classList.remove('incorrect');
+                        captchaAnswer.focus();
+                    }, 500);
+                }
+                
+                // Generar nuevo CAPTCHA
+                this.generateCaptcha();
+            }
+        }, 300);
     }
 
     /**
@@ -731,6 +866,10 @@ class ChatbotApp {
         
         // Limpiar mensajes anteriores
         if (this.elements.chatMessages) {
+            // Resetear estado de scroll
+            this.state.scrollTimeout = null;
+            this.state.isScrolling = false;
+            
             this.elements.chatMessages.innerHTML = '';
             this.state.conversationHistory = [];
             
@@ -818,6 +957,11 @@ class ChatbotApp {
         messageHTML += `<div class="menu-options">`;
         
         menuData.opciones.forEach(opcion => {
+            // Filtrar la opción 4 (Salir) del menú principal
+            if (opcion.id === 4) {
+                return; // Saltar la opción de salir
+            }
+            
             const icono = iconos[opcion.id] || iconos[1]; // Usar icono por defecto si no existe
             messageHTML += `
                 <div class="menu-option-card" 
@@ -934,6 +1078,10 @@ class ChatbotApp {
         this.state.waitingForTaskNumber = false;
         
         if (this.elements.chatMessages) {
+            // Resetear estado de scroll
+            this.state.scrollTimeout = null;
+            this.state.isScrolling = false;
+            
             this.elements.chatMessages.innerHTML = '';
         }
         
@@ -1480,7 +1628,7 @@ class ChatbotApp {
         
         if (textElement) {
             textElement.textContent = this.state.currentStreamingMessage.content;
-            this.scrollToBottom();
+            this.scrollToBottom(true);
         }
     }
 
@@ -1541,7 +1689,9 @@ class ChatbotApp {
         
         const messageElement = this.createMessageElement('bot', displayText, isHTML, metadata);
         this.elements.chatMessages.appendChild(messageElement);
-        this.scrollToBottom();
+        
+        // Scroll forzado después de agregar el mensaje
+        this.scrollToBottom(true);
         
         // Si se detectó la instrucción, mostrar el menú después de un breve delay
         if (shouldShowMenu) {
@@ -1559,7 +1709,10 @@ class ChatbotApp {
     addUserMessage(text) {
         const messageElement = this.createMessageElement('user', text);
         this.elements.chatMessages.appendChild(messageElement);
-        this.scrollToBottom();
+        
+        // Scroll forzado después de agregar el mensaje
+        this.scrollToBottom(true);
+        
         return messageElement;
     }
 
@@ -1627,12 +1780,48 @@ class ChatbotApp {
     }
 
     /**
-     * Hace scroll al final del chat
+     * Hace scroll al final del chat de forma suave y sin parpadeos
      */
-    scrollToBottom() {
-        setTimeout(() => {
-            this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
-        }, 100);
+    scrollToBottom(force = false) {
+        // Cancelar scroll anterior si existe
+        if (this.state.scrollTimeout) {
+            clearTimeout(this.state.scrollTimeout);
+            this.state.scrollTimeout = null;
+        }
+        
+        // Si ya está haciendo scroll y no es forzado, ignorar
+        if (this.state.isScrolling && !force) {
+            return;
+        }
+        
+        this.state.isScrolling = true;
+        
+        // Usar requestAnimationFrame para scroll suave
+        const scroll = () => {
+            const messagesContainer = this.elements.chatMessages;
+            if (!messagesContainer) {
+                this.state.isScrolling = false;
+                return;
+            }
+            
+            const targetScroll = messagesContainer.scrollHeight;
+            const currentScroll = messagesContainer.scrollTop;
+            const maxScroll = messagesContainer.scrollHeight - messagesContainer.clientHeight;
+            
+            // Solo hacer scroll si no está cerca del final o si es forzado
+            if (force || Math.abs(currentScroll - maxScroll) > 50) {
+                messagesContainer.scrollTop = targetScroll;
+            }
+            
+            this.state.isScrolling = false;
+        };
+        
+        // Usar requestAnimationFrame para mejor rendimiento
+        if (window.requestAnimationFrame) {
+            requestAnimationFrame(scroll);
+        } else {
+            this.state.scrollTimeout = setTimeout(scroll, 50);
+        }
     }
 
     /**
@@ -1680,13 +1869,35 @@ class ChatbotApp {
     }
 
     /**
-     * Cambia de usuario
+     * Maneja el logout/salir del sistema
      */
+    handleLogout() {
+        console.log('🚪 Saliendo del sistema...');
+        
+        // Mostrar mensaje de despedida
+        this.addBotMessage('👋 ¡Hasta luego! Cerrando sesión...');
+        
+        // Limpiar datos de login y sesión
+        localStorage.removeItem('user_login');
+        localStorage.removeItem('jwt_token');
+        
+        // Reiniciar estado
+        this.state.isLoggedIn = false;
+        this.state.menuSessionId = null;
+        this.state.menuSessionActive = false;
+        
+        // Redirigir al login después de un breve delay
+        setTimeout(() => {
+            this.changeUser();
+        }, 1500);
+    }
+
     changeUser() {
         console.log('🔄 Cambiando usuario...');
         
         // Limpiar datos de login
         localStorage.removeItem('user_login');
+        localStorage.removeItem('jwt_token');
         
         // Resetear estado
         this.state.isLoggedIn = false;

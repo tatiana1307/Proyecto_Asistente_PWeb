@@ -1,16 +1,52 @@
-ASISTENTE DE TAREAS INTEGRANDO INTELIGENCIA ARTIFICIAL
+# 📦 Archivos Estáticos - Backend
 
-proyecto pensado para ser desarrollado en java con Spring Boot y se conecta con la API de chatgpt de OpenIA
+## 📋 Propósito
 
-## Características
+Este directorio contiene los archivos estáticos que **Spring Boot sirve automáticamente** cuando la aplicación está corriendo.
 
-- API REST sencilla para enviar mensajes a ChatGPT
-- Respuestas en formato JSON
-- Manejo de errores robusto
-- Logging detallado
-- Validación de entrada
-## Requisitos
+## 🎯 ¿Qué son estos archivos?
 
-- Java 17 o superior
-- Maven 3.6 o superior
-- Clave de API de OpenAI
+Estos son los archivos del frontend que se sirven en:
+- `http://localhost:8080/` → `index.html`
+- `http://localhost:8080/app.js` → `app.js`
+- `http://localhost:8080/Styles.css` → `Styles.css`
+- `http://localhost:8080/*.jpg, *.png` → Imágenes
+
+## 🔄 Origen de los Archivos
+
+**Estos archivos provienen de `/ASISTENTE/frontend/`**
+
+- **Código fuente**: `/ASISTENTE/frontend/` (aquí editas)
+- **Archivos servidos**: `/ASISTENTE/backend/src/main/resources/static/` (este directorio)
+
+## 📝 Flujo de Trabajo
+
+1. **Edita** los archivos en `/ASISTENTE/frontend/`
+2. **Copia** los cambios a este directorio (`/backend/src/main/resources/static/`)
+3. **Reinicia** el backend para ver los cambios
+
+### Sincronización Rápida
+
+```bash
+# Desde /ASISTENTE/
+./sync-frontend.sh
+```
+
+## ⚠️ Importante
+
+- **NO edites directamente aquí** si trabajas en `/frontend/`
+- **SÍ edita aquí** si prefieres trabajar directamente en los archivos servidos
+- Spring Boot **sirve automáticamente** todos los archivos de este directorio
+- Los cambios requieren **reiniciar el backend** para verse
+
+## 📁 Archivos en este Directorio
+
+- `index.html` - Página principal
+- `app.js` - Lógica JavaScript
+- `Styles.css` - Estilos CSS
+- `*.jpg, *.png` - Imágenes y recursos
+
+## 🔗 Ver También
+
+- `/ASISTENTE/frontend/README.md` - Documentación del código fuente
+- `/ASISTENTE/ESTRUCTURA.md` - Estructura completa del proyecto
