@@ -1,17 +1,17 @@
-# 📱 Frontend - Asistente Virtual
+# Frontend - Asistente Virtual
 
-## 📋 Descripción
+## Descripción
 
 Código fuente del frontend de la aplicación Asistente Virtual de Proyectos.
 
-## 📁 Archivos
+## Archivos
 
 - **`index.html`** - Página principal con formulario de login y chatbot
 - **`app.js`** - Lógica de la aplicación (autenticación, chat, gestión de proyectos)
 - **`styles.css`** - Estilos CSS de la aplicación
 - **`*.jpg, *.png`** - Imágenes y recursos visuales
 
-## 🔄 Sincronización con Backend
+## Sincronización con Backend
 
 Este es el código fuente. Para que los cambios se vean en la aplicación:
 
@@ -42,7 +42,7 @@ cp frontend/*.png backend/src/main/resources/static/ 2>/dev/null || true
 - JavaScript (ES6+)
 - Fetch API para comunicación con backend
 
-## 📡 Endpoints Utilizados
+## Endpoints Utilizados
 
 - `POST /api/auth/login` - Autenticación
 - `POST /api/auth/register` - Registro de usuarios
@@ -50,15 +50,9 @@ cp frontend/*.png backend/src/main/resources/static/ 2>/dev/null || true
 - `GET /api/menu/opciones` - Obtener opciones del menú
 - `POST /api/menu/procesar` - Procesar opción del menú
 
-## 🔐 Autenticación
+## Autenticación
 
 La aplicación utiliza JWT (JSON Web Tokens) para autenticación:
 - Token almacenado en `localStorage` como `jwt_token`
 - Token incluido en headers de peticiones autenticadas
 - Expiración: 24 horas
-
-## 📝 Notas
-
-- Este directorio contiene el código fuente
-- Los archivos servidos están en `/backend/src/main/resources/static/`
-- Mantén ambos sincronizados

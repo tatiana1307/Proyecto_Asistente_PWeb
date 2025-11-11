@@ -6,24 +6,23 @@ Sistema completo de gestión de proyectos con integración de Inteligencia Artif
 
 ```
 ASISTENTE/
-├── frontend/              # 📱 Código fuente del frontend
+├── frontend/              
 │   ├── index.html
 │   ├── app.js
 │   ├── styles.css
 │   └── README.md
 │
-├── backend/              # 🔧 Backend Spring Boot
+├── backend/              
 │   ├── src/main/
-│   │   ├── java/         #   Código Java
+│   │   ├── java/        
 │   │   └── resources/
 │   │       ├── application.properties
-│   │       └── static/   #   Frontend servido por Spring Boot
+│   │       └── static/   
 │   └── README.md
 │
-├── ESTRUCTURA.md         # 📖 Documentación de la estructura
-├── sync-frontend.sh      # 🔄 Script de sincronización
-└── README.md             # 📄 Este archivo
-```
+├── ESTRUCTURA.md        
+├── sync-frontend.sh     
+└── README.md             
 
 ## 🎯 Componentes
 
